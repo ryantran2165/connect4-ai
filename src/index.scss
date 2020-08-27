@@ -1,0 +1,72 @@
+$theme-colors: (
+  "primary": aquamarine,
+);
+
+@import "node_modules/bootstrap/scss/bootstrap";
+
+@mixin shadow {
+  box-shadow: 0 0.1rem 0.25rem rgba(0, 0, 0, 0.3),
+    0 0 2.5rem rgba(0, 0, 0, 0.1) inset;
+}
+
+.btn {
+  @include shadow;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background-color: #f5f5f5;
+  color: #222;
+}
+
+select {
+  padding: 10px;
+  border-radius: 5px;
+  background-color: aquamarine;
+  border: none;
+  @include shadow;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+option {
+  background-color: aquamarine;
+}
+
+table,
+tr,
+td {
+  border: none !important;
+}
+
+.board-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 0;
+  background-color: #bbb;
+  @include shadow;
+
+  &:hover {
+    filter: brightness(75%);
+  }
+
+  &:focus {
+    outline: 0;
+  }
+
+  &.p1 {
+    background-color: aquamarine;
+  }
+
+  &.p2 {
+    background-color: #ff947f;
+  }
+
+  // @media (max-width: 576px) {
+  //   width: 30px;
+  //   height: 30px;
+  // }
+}
