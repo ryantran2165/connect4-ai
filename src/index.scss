@@ -65,6 +65,10 @@ td {
     background-color: #ff947f;
   }
 
+  &.win {
+    border: solid gold 2px;
+  }
+
   // @media (max-width: 576px) {
   //   width: 30px;
   //   height: 30px;
