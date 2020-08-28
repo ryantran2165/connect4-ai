@@ -5,6 +5,8 @@ import Button from "./components/button";
 import GithubCorner from "react-github-corner";
 import Board from "./components/board";
 import Select from "./components/select";
+import RangeInput from "./components/range-input";
+import Label from "./components/label";
 
 const ROWS = 6;
 const COLS = 7;
@@ -16,7 +18,7 @@ const OPTIONS = [
   "Hard (neuroevolution)",
   "Crazy (deep minimax)",
 ];
-const AI_SPEED = 1000;
+const AI_SPEED = 100;
 
 class App extends Component {
   constructor(props) {
@@ -27,16 +29,10 @@ class App extends Component {
       winner: -1, // -1: game in progress, 0: draw, 1: player 1, 2: player 2
       p1: 0, // 0: player, 1: easy, 2: normal, 3: hard, 4: crazy
       p2: 0,
+      movesRemaining: ROWS * COLS,
+      aiSpeed: 0.2,
     };
   }
-
-  // componentDidMount() {
-  //   this.timer = setInterval(this.runAI, AI_SPEED);
-  // }
-
-  // componentWillUnmount() {
-  //   clearInterval(this.timer);
-  // }
 
   runAI = () => {
     // Only run AI if not game over
@@ -44,25 +40,26 @@ class App extends Component {
       return;
     }
 
-    // Run AI for player 1
-    if (this.state.curPlayer === 1 && this.state.p1 !== 0) {
-      if (this.state.p1 === 1) {
-        this.randomAI();
-      } else if (this.state.p1 === 2) {
-      } else if (this.state.p1 === 3) {
-      } else if (this.state.p1 === 4) {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      if (this.state.curPlayer === 1 && this.state.p1 !== 0) {
+        // Run AI for player 1
+        if (this.state.p1 === 1) {
+          this.randomAI();
+        } else if (this.state.p1 === 2) {
+        } else if (this.state.p1 === 3) {
+        } else if (this.state.p1 === 4) {
+        }
+      } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
+        // Run AI for player 2
+        if (this.state.p2 === 1) {
+          this.randomAI();
+        } else if (this.state.p2 === 2) {
+        } else if (this.state.p2 === 3) {
+        } else if (this.state.p2 === 4) {
+        }
       }
-    }
-
-    // Run AI for player 2
-    if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
-      if (this.state.p2 === 1) {
-        this.randomAI();
-      } else if (this.state.p2 === 2) {
-      } else if (this.state.p2 === 3) {
-      } else if (this.state.p2 === 4) {
-      }
-    }
+    }, AI_SPEED / this.state.aiSpeed);
   };
 
   randomAI() {
@@ -78,13 +75,19 @@ class App extends Component {
 
   handleSelectChange = (e, player) => {
     if (player === 1) {
-      this.setState({
-        p1: e.target.selectedIndex,
-      });
+      this.setState(
+        {
+          p1: e.target.selectedIndex,
+        },
+        () => this.runAI()
+      );
     } else if (player === 2) {
-      this.setState({
-        p2: e.target.selectedIndex,
-      });
+      this.setState(
+        {
+          p2: e.target.selectedIndex,
+        },
+        () => this.runAI()
+      );
     }
   };
 
@@ -95,12 +98,9 @@ class App extends Component {
         board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
         curPlayer: 1 + Math.floor(2 * Math.random()),
         winner: -1,
+        movesRemaining: ROWS * COLS,
       },
-      () => {
-        // setTimeout(() => {
-        //   this.runAI();
-        // }, AI_SPEED);
-      }
+      () => this.runAI()
     );
 
     // Reset board button styles
@@ -154,16 +154,18 @@ class App extends Component {
           {
             board: newBoard,
             curPlayer: (this.state.curPlayer % 2) + 1,
+            movesRemaining: this.state.movesRemaining - 1,
           },
           () => {
             // Check win after setting updated board
             if (this.checkWin(r, col, player)) {
               this.setState({ winner: player });
+            } else if (this.state.movesRemaining === 0) {
+              // Draw
+              this.setState({ winner: 0 });
+            } else {
+              this.runAI();
             }
-
-            // setTimeout(() => {
-            //   this.runAI();
-            // }, AI_SPEED);
           }
         );
 
@@ -277,10 +279,23 @@ class App extends Component {
     return true;
   };
 
+  updateState = (e) => {
+    this.setState(
+      {
+        [e.target.id]: e.target.value,
+      },
+      () => this.runAI()
+    );
+  };
+
   render() {
     let turnText;
     if (this.state.winner !== -1) {
-      turnText = `Player ${this.state.winner} wins`;
+      if (this.state.winner === 0) {
+        turnText = "Draw";
+      } else {
+        turnText = `Player ${this.state.winner} wins`;
+      }
     } else {
       turnText = `Player ${this.state.curPlayer} turn`;
     }
@@ -315,6 +330,23 @@ class App extends Component {
               player={2}
               onChange={(e) => this.handleSelectChange(e, 2)}
             />
+          </div>
+        </div>
+        <div className="row justify-content-center pt-3">
+          <div className="col col-10 col-sm-8 col-md-6 col-lg-4 col-xl-2">
+            <RangeInput
+              min={0.01}
+              max={1}
+              step={0.01}
+              defaultValue={this.state.aiSpeed}
+              id="aiSpeed"
+              onChange={this.updateState}
+            />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col">
+            <Label text="AI speed" value={this.state.aiSpeed} />
           </div>
         </div>
         <div className="row justify-content-center pt-3">
