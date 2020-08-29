@@ -10,7 +10,7 @@ import Label from "./components/label";
 
 const ROWS = 6;
 const COLS = 7;
-const IN_A_ROW = 4;
+const CONSECUTIVE_TO_WIN = 4;
 const OPTIONS = [
   "Player",
   "Easy (random)",
@@ -19,6 +19,8 @@ const OPTIONS = [
   "Crazy (deep minimax)",
 ];
 const AI_SPEED = 100;
+const MINIMAX_NORMAL_DEPTH = 1;
+const MINIMAX_CRAZY_DEPTH = 5;
 
 class App extends Component {
   constructor(props) {
@@ -47,6 +49,7 @@ class App extends Component {
         if (this.state.p1 === 1) {
           this.randomAI();
         } else if (this.state.p1 === 2) {
+          this.minimaxAI(MINIMAX_NORMAL_DEPTH);
         } else if (this.state.p1 === 3) {
         } else if (this.state.p1 === 4) {
         }
@@ -55,6 +58,7 @@ class App extends Component {
         if (this.state.p2 === 1) {
           this.randomAI();
         } else if (this.state.p2 === 2) {
+          this.minimaxAI(MINIMAX_NORMAL_DEPTH);
         } else if (this.state.p2 === 3) {
         } else if (this.state.p2 === 4) {
         }
@@ -63,14 +67,122 @@ class App extends Component {
   };
 
   randomAI() {
-    const validCols = [];
-    for (let c = 0; c < COLS; c++) {
-      if (this.state.board[0][c] === 0) {
-        validCols.push(c);
+    const validMoves = this.getValidMoves(this.state.board);
+    const [_, col] = validMoves[Math.floor(Math.random() * validMoves.length)];
+    this.dropDisc(col);
+  }
+
+  minimaxAI(depth) {
+    let maxVal = Number.NEGATIVE_INFINITY;
+    let maxCols = [];
+    let vals = [];
+    for (let [validRow, validCol] of this.getValidMoves(this.state.board)) {
+      const val = this.minimax(
+        this.state.board,
+        validCol,
+        depth,
+        true,
+        this.state.curPlayer
+      );
+      if (val > maxVal) {
+        // New max value
+        maxVal = val;
+
+        // New max columns array
+        maxCols = [validCol];
+      } else if (val === maxVal) {
+        // Same max value, add to array of possible choices
+        maxCols.push(validCol);
+      }
+      vals.push(val);
+    }
+    console.log(vals);
+    const randMaxCol = maxCols[Math.floor(Math.random() * maxCols.length)];
+    this.dropDisc(randMaxCol);
+  }
+
+  minimax(board, col, depth, maximizingPlayer, player) {
+    // Game over when valid moves is empty
+    if (depth === 0 || this.getValidMoves(board).length === 0) {
+      const heuristic = this.heuristic(board, col, player);
+      // console.log(heuristic);
+      return heuristic;
+    }
+
+    if (maximizingPlayer) {
+      let maxVal = Number.NEGATIVE_INFINITY;
+      for (let [validRow, validCol] of this.getValidMoves(board)) {
+        const boardCopy = this.copyBoard(validRow, validCol, board, player);
+        const val = this.minimax(boardCopy, validCol, depth - 1, false, player);
+        maxVal = Math.max(maxVal, val);
+      }
+      return maxVal;
+    } else {
+      let minVal = Number.POSITIVE_INFINITY;
+      for (let [validRow, validCol] of this.getValidMoves(board)) {
+        const boardCopy = this.copyBoard(
+          validRow,
+          validCol,
+          board,
+          (player % 2) + 1
+        );
+        const val = this.minimax(boardCopy, validCol, depth - 1, true, player);
+        minVal = Math.min(minVal, val);
+      }
+      return minVal;
+    }
+  }
+
+  heuristic(board, col, player) {
+    const row = this.getDropRow(col);
+    let weightedSum = 0;
+
+    // Weights increase alternatingly
+    /*
+        p1_4: 1e5
+        p1_3: 1e3
+        p1_2: 1e1
+        p2_2: -1e0
+        p2_3: -1e2
+        p2_4: -1e4
+     */
+    for (let i = 0; i < CONSECUTIVE_TO_WIN - 1; i++) {
+      // Positive
+      weightedSum +=
+        10 ** (2 * i + 1) *
+        this.countConsecutive(board, row, col, player, i + 2, false);
+
+      // Negative
+      // weightedSum -=
+      //   10 ** (2 * i) *
+      //   this.countConsecutive(board, row, col, (player % 2) + 1, i + 2, false);
+    }
+
+    return weightedSum;
+  }
+
+  getValidMoves(board) {
+    const validMoves = [];
+    for (let col = 0; col < COLS; col++) {
+      if (board[0][col] === 0) {
+        const row = this.getDropRow(col);
+        validMoves.push([row, col]);
       }
     }
-    const col = validCols[Math.floor(Math.random() * validCols.length)];
-    this.dropDisc(col);
+    return validMoves;
+  }
+
+  copyBoard(row, col, board, player) {
+    // Deep copy the board
+    const boardCopy = [];
+    for (let row of board) {
+      boardCopy.push(row.slice());
+    }
+
+    // Set the disc
+    boardCopy[row][col] = player;
+
+    return boardCopy;
   }
 
   handleSelectChange = (e, player) => {
@@ -104,9 +216,9 @@ class App extends Component {
     );
 
     // Reset board button styles
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const button = document.getElementById(`button-${r}-${c}`);
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const button = document.getElementById(`button-${row}-${col}`);
         if (button.classList.contains("p1")) {
           button.classList.remove("p1");
         }
@@ -136,74 +248,112 @@ class App extends Component {
       return;
     }
 
-    for (let r = ROWS - 1; r >= 0; r--) {
-      if (this.state.board[r][col] === 0) {
-        // Add player class to button to change style
-        const button = document.getElementById(`button-${r}-${col}`);
-        button.classList.add(`p${this.state.curPlayer}`);
+    const row = this.getDropRow(col);
 
-        // Copy board and drop disc
-        const newBoard = this.state.board;
-        newBoard[r][col] = this.state.curPlayer;
-
-        // Save current player to check win
-        const player = this.state.curPlayer;
-
-        // Update board and current player
-        this.setState(
-          {
-            board: newBoard,
-            curPlayer: (this.state.curPlayer % 2) + 1,
-            movesRemaining: this.state.movesRemaining - 1,
-          },
-          () => {
-            // Check win after setting updated board
-            if (this.checkWin(r, col, player)) {
-              this.setState({ winner: player });
-            } else if (this.state.movesRemaining === 0) {
-              // Draw
-              this.setState({ winner: 0 });
-            } else {
-              this.runAI();
-            }
-          }
-        );
-
-        break;
-      }
+    // Column is full
+    if (row === -1) {
+      return;
     }
+
+    // Add player class to button to change style
+    const button = document.getElementById(`button-${row}-${col}`);
+    button.classList.add(`p${this.state.curPlayer}`);
+
+    // Copy board and drop disc
+    const board = this.copyBoard(
+      row,
+      col,
+      this.state.board,
+      this.state.curPlayer
+    );
+
+    // Win
+    let winner = -1;
+    if (
+      this.countConsecutive(
+        board,
+        row,
+        col,
+        this.state.curPlayer,
+        CONSECUTIVE_TO_WIN,
+        true
+      ) > 0
+    ) {
+      winner = this.state.curPlayer;
+    } else if (this.state.movesRemaining === 1) {
+      // Draw
+      winner = 0;
+    }
+
+    // Update board and current player
+    this.setState(
+      {
+        board: board,
+        curPlayer: (this.state.curPlayer % 2) + 1,
+        movesRemaining: this.state.movesRemaining - 1,
+        winner: winner,
+      },
+      () => this.runAI()
+    );
   };
 
-  checkWin = (row, col, player) => {
-    let win = false;
+  getDropRow(col) {
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (this.state.board[row][col] === 0) {
+        return row;
+      }
+    }
+    return -1;
+  }
+
+  countConsecutive = (board, row, col, player, consecutive, addWinClass) => {
+    let consecutiveCount = 0;
 
     // Pivot on the placed disk
-    for (let i = 0; i < IN_A_ROW; i++) {
+    for (let i = 0; i < consecutive; i++) {
       const leftBound = col - i;
-      const rightBound = col + IN_A_ROW - i - 1;
+      const rightBound = col + consecutive - i - 1;
       const topBound = row - i;
-      const bottomBound = row + IN_A_ROW - i - 1;
+      const bottomBound = row + consecutive - i - 1;
 
       // Horizontal, right to left
       if (leftBound >= 0 && rightBound < COLS) {
-        win =
-          win ||
-          this.checkWinHelper(
+        if (
+          this.checkConsecutive(
+            board,
             row,
             leftBound,
             false,
             true,
             false,
             false,
-            player
-          );
+            player,
+            consecutive,
+            addWinClass
+          )
+        ) {
+          consecutiveCount++;
+        }
       }
 
       // Vertical, bottom to top
       if (topBound >= 0 && bottomBound < ROWS) {
-        win =
-          win ||
-          this.checkWinHelper(topBound, col, true, false, false, false, player);
+        if (
+          this.checkConsecutive(
+            board,
+            topBound,
+            col,
+            true,
+            false,
+            false,
+            false,
+            player,
+            consecutive,
+            addWinClass
+          )
+        ) {
+          consecutiveCount++;
+        }
       }
 
       // Negative Diagonal, bottom right to top left
@@ -213,21 +363,26 @@ class App extends Component {
         topBound >= 0 &&
         bottomBound < ROWS
       ) {
-        win =
-          win ||
-          this.checkWinHelper(
+        if (
+          this.checkConsecutive(
+            board,
             topBound,
             leftBound,
             true,
             true,
             false,
             false,
-            player
-          );
+            player,
+            consecutive,
+            addWinClass
+          )
+        ) {
+          consecutiveCount++;
+        }
       }
 
       // Positive Diagonal, bottom left to top right
-      const newLeftBound = col - IN_A_ROW + i + 1;
+      const newLeftBound = col - consecutive + i + 1;
       const newRightBound = col + i;
       if (
         newLeftBound >= 0 &&
@@ -235,44 +390,58 @@ class App extends Component {
         topBound >= 0 &&
         bottomBound < ROWS
       ) {
-        win =
-          win ||
-          this.checkWinHelper(
+        if (
+          this.checkConsecutive(
+            board,
             topBound,
             newRightBound,
             true,
             true,
             false,
             true,
-            player
-          );
+            player,
+            consecutive,
+            addWinClass
+          )
+        ) {
+          consecutiveCount++;
+        }
       }
     }
 
-    return win;
+    return consecutiveCount;
   };
 
-  checkWinHelper = (r, c, incR, incC, invertR, invertC, player) => {
+  checkConsecutive = (
+    board,
+    row,
+    col,
+    incrementRow,
+    incrementCol,
+    invertRow,
+    invertCol,
+    player,
+    consecutive,
+    addWinClass
+  ) => {
     // Check if all discs by player
-    for (let j = 0; j < IN_A_ROW; j++) {
-      if (
-        this.state.board[r + (incR ? (invertR ? -j : j) : 0)][
-          c + (incC ? (invertC ? -j : j) : 0)
-        ] !== player
-      ) {
+    for (let offset = 0; offset < consecutive; offset++) {
+      const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
+      const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
+      if (board[r][c] !== player) {
         return false;
       }
     }
 
     // Add win class to style button
-    for (let j = 0; j < IN_A_ROW; j++) {
-      const button = document.getElementById(
-        `button-${r + (incR ? (invertR ? -j : j) : 0)}-${
-          c + (incC ? (invertC ? -j : j) : 0)
-        }`
-      );
-      if (!button.classList.contains("win")) {
-        button.classList.add("win");
+    if (addWinClass) {
+      for (let offset = 0; offset < consecutive; offset++) {
+        const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
+        const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
+        const button = document.getElementById(`button-${r}-${c}`);
+        if (!button.classList.contains("win")) {
+          button.classList.add("win");
+        }
       }
     }
 
