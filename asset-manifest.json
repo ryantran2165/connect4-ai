@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/connect4-ai/static/css/main.bd7d0572.chunk.css",
+    "main.css": "/connect4-ai/static/css/main.68a955aa.chunk.css",
     "main.js": "/connect4-ai/static/js/main.7ab30649.chunk.js",
     "main.js.map": "/connect4-ai/static/js/main.7ab30649.chunk.js.map",
     "runtime-main.js": "/connect4-ai/static/js/runtime-main.679ac66b.js",
@@ -9,17 +9,17 @@
     "static/js/2.6971ba79.chunk.js": "/connect4-ai/static/js/2.6971ba79.chunk.js",
     "static/js/2.6971ba79.chunk.js.map": "/connect4-ai/static/js/2.6971ba79.chunk.js.map",
     "index.html": "/connect4-ai/index.html",
-    "precache-manifest.de7aa61fa056ab68fa718323a49b14a7.js": "/connect4-ai/precache-manifest.de7aa61fa056ab68fa718323a49b14a7.js",
+    "precache-manifest.4019478a7a30bbc5089864607c07f0f9.js": "/connect4-ai/precache-manifest.4019478a7a30bbc5089864607c07f0f9.js",
     "service-worker.js": "/connect4-ai/service-worker.js",
     "static/css/2.f3cffc9e.chunk.css.map": "/connect4-ai/static/css/2.f3cffc9e.chunk.css.map",
-    "static/css/main.bd7d0572.chunk.css.map": "/connect4-ai/static/css/main.bd7d0572.chunk.css.map",
+    "static/css/main.68a955aa.chunk.css.map": "/connect4-ai/static/css/main.68a955aa.chunk.css.map",
     "static/js/2.6971ba79.chunk.js.LICENSE.txt": "/connect4-ai/static/js/2.6971ba79.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.679ac66b.js",
     "static/css/2.f3cffc9e.chunk.css",
     "static/js/2.6971ba79.chunk.js",
-    "static/css/main.bd7d0572.chunk.css",
+    "static/css/main.68a955aa.chunk.css",
     "static/js/main.7ab30649.chunk.js"
   ]
 }
