@@ -13,179 +13,46 @@ const COLS = 7;
 const CONSECUTIVE_TO_WIN = 4;
 const OPTIONS = [
   "Player",
-  "Easy (random)",
-  "Normal (shallow minimax)",
+  "Drunk (random)",
+  "Easy (2-step minimax)",
+  "Normal (4-step minimax)",
   "Hard (neuroevolution)",
-  "Crazy (deep minimax)",
+  "Extreme (6-step minimax)",
 ];
 const AI_SPEED = 100;
-const MINIMAX_NORMAL_DEPTH = 1;
-const MINIMAX_CRAZY_DEPTH = 5;
+const MINIMAX_EASY_DEPTH = 2;
+const MINIMAX_NORMAL_DEPTH = 4;
+const MINIMAX_EXTREME_DEPTH = 6;
+
+const SIMULATE = false;
+const P1 = 1;
+const P2 = 1;
+const MATCHES = 20;
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
       board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
-      curPlayer: 1 + Math.floor(2 * Math.random()),
+      curPlayer: 1,
       winner: -1, // -1: game in progress, 0: draw, 1: player 1, 2: player 2
       p1: 0, // 0: player, 1: easy, 2: normal, 3: hard, 4: crazy
       p2: 0,
-      movesRemaining: ROWS * COLS,
       aiSpeed: 0.2,
     };
   }
 
-  runAI = () => {
-    // Only run AI if not game over
-    if (this.state.winner !== -1) {
-      return;
-    }
-
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      if (this.state.curPlayer === 1 && this.state.p1 !== 0) {
-        // Run AI for player 1
-        if (this.state.p1 === 1) {
-          this.randomAI();
-        } else if (this.state.p1 === 2) {
-          this.minimaxAI(MINIMAX_NORMAL_DEPTH);
-        } else if (this.state.p1 === 3) {
-        } else if (this.state.p1 === 4) {
-        }
-      } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
-        // Run AI for player 2
-        if (this.state.p2 === 1) {
-          this.randomAI();
-        } else if (this.state.p2 === 2) {
-          this.minimaxAI(MINIMAX_NORMAL_DEPTH);
-        } else if (this.state.p2 === 3) {
-        } else if (this.state.p2 === 4) {
-        }
-      }
-    }, AI_SPEED / this.state.aiSpeed);
-  };
-
-  randomAI() {
-    const validMoves = this.getValidMoves(this.state.board);
-    const [_, col] = validMoves[Math.floor(Math.random() * validMoves.length)];
-    this.dropDisc(col);
-  }
-
-  minimaxAI(depth) {
-    let maxVal = Number.NEGATIVE_INFINITY;
-    let maxCols = [];
-    let vals = [];
-    for (let [validRow, validCol] of this.getValidMoves(this.state.board)) {
-      const val = this.minimax(
-        this.state.board,
-        validCol,
-        depth,
-        true,
-        this.state.curPlayer
-      );
-      if (val > maxVal) {
-        // New max value
-        maxVal = val;
-
-        // New max columns array
-        maxCols = [validCol];
-      } else if (val === maxVal) {
-        // Same max value, add to array of possible choices
-        maxCols.push(validCol);
-      }
-      vals.push(val);
-    }
-    console.log(vals);
-    const randMaxCol = maxCols[Math.floor(Math.random() * maxCols.length)];
-    this.dropDisc(randMaxCol);
-  }
-
-  minimax(board, col, depth, maximizingPlayer, player) {
-    // Game over when valid moves is empty
-    if (depth === 0 || this.getValidMoves(board).length === 0) {
-      const heuristic = this.heuristic(board, col, player);
-      // console.log(heuristic);
-      return heuristic;
-    }
-
-    if (maximizingPlayer) {
-      let maxVal = Number.NEGATIVE_INFINITY;
-      for (let [validRow, validCol] of this.getValidMoves(board)) {
-        const boardCopy = this.copyBoard(validRow, validCol, board, player);
-        const val = this.minimax(boardCopy, validCol, depth - 1, false, player);
-        maxVal = Math.max(maxVal, val);
-      }
-      return maxVal;
-    } else {
-      let minVal = Number.POSITIVE_INFINITY;
-      for (let [validRow, validCol] of this.getValidMoves(board)) {
-        const boardCopy = this.copyBoard(
-          validRow,
-          validCol,
-          board,
-          (player % 2) + 1
-        );
-        const val = this.minimax(boardCopy, validCol, depth - 1, true, player);
-        minVal = Math.min(minVal, val);
-      }
-      return minVal;
+  componentDidMount() {
+    if (SIMULATE) {
+      this.matches = MATCHES;
+      this.p1Wins = 0;
+      this.p2Wins = 0;
+      this.draws = 0;
+      this.setState({ p1: P1, p2: P2 }, () => this.runAI());
     }
   }
 
-  heuristic(board, col, player) {
-    const row = this.getDropRow(col);
-    let weightedSum = 0;
-
-    // Weights increase alternatingly
-    /*
-        p1_4: 1e5
-        p1_3: 1e3
-        p1_2: 1e1
-        p2_2: -1e0
-        p2_3: -1e2
-        p2_4: -1e4
-     */
-    for (let i = 0; i < CONSECUTIVE_TO_WIN - 1; i++) {
-      // Positive
-      weightedSum +=
-        10 ** (2 * i + 1) *
-        this.countConsecutive(board, row, col, player, i + 2, false);
-
-      // Negative
-      // weightedSum -=
-      //   10 ** (2 * i) *
-      //   this.countConsecutive(board, row, col, (player % 2) + 1, i + 2, false);
-    }
-
-    return weightedSum;
-  }
-
-  getValidMoves(board) {
-    const validMoves = [];
-    for (let col = 0; col < COLS; col++) {
-      if (board[0][col] === 0) {
-        const row = this.getDropRow(col);
-        validMoves.push([row, col]);
-      }
-    }
-    return validMoves;
-  }
-
-  copyBoard(row, col, board, player) {
-    // Deep copy the board
-    const boardCopy = [];
-    for (let row of board) {
-      boardCopy.push(row.slice());
-    }
-
-    // Set the disc
-    boardCopy[row][col] = player;
-
-    return boardCopy;
-  }
-
-  handleSelectChange = (e, player) => {
+  selectPlayer = (e, player) => {
     if (player === 1) {
       this.setState(
         {
@@ -203,14 +70,22 @@ class App extends Component {
     }
   };
 
-  handleNewGame = () => {
+  updateAISpeed = (e) => {
+    this.setState(
+      {
+        aiSpeed: Number(e.target.value),
+      },
+      () => this.runAI()
+    );
+  };
+
+  setNewGame = () => {
     // Reset board and choose random player to start
     this.setState(
       {
         board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
-        curPlayer: 1 + Math.floor(2 * Math.random()),
+        curPlayer: 1,
         winner: -1,
-        movesRemaining: ROWS * COLS,
       },
       () => this.runAI()
     );
@@ -248,7 +123,7 @@ class App extends Component {
       return;
     }
 
-    const row = this.getDropRow(col);
+    const row = this.getDropRow(this.state.board, col);
 
     // Column is full
     if (row === -1) {
@@ -260,7 +135,7 @@ class App extends Component {
     button.classList.add(`p${this.state.curPlayer}`);
 
     // Copy board and drop disc
-    const board = this.copyBoard(
+    const board = this.nextBoard(
       row,
       col,
       this.state.board,
@@ -269,18 +144,9 @@ class App extends Component {
 
     // Win
     let winner = -1;
-    if (
-      this.countConsecutive(
-        board,
-        row,
-        col,
-        this.state.curPlayer,
-        CONSECUTIVE_TO_WIN,
-        true
-      ) > 0
-    ) {
+    if (this.checkWin(board, row, col)) {
       winner = this.state.curPlayer;
-    } else if (this.state.movesRemaining === 1) {
+    } else if (this.isBoardFull(board)) {
       // Draw
       winner = 0;
     }
@@ -290,70 +156,49 @@ class App extends Component {
       {
         board: board,
         curPlayer: (this.state.curPlayer % 2) + 1,
-        movesRemaining: this.state.movesRemaining - 1,
         winner: winner,
       },
       () => this.runAI()
     );
   };
 
-  getDropRow(col) {
-    for (let row = ROWS - 1; row >= 0; row--) {
-      if (this.state.board[row][col] === 0) {
-        return row;
-      }
-    }
-    return -1;
-  }
-
-  countConsecutive = (board, row, col, player, consecutive, addWinClass) => {
-    let consecutiveCount = 0;
+  checkWin = (board, row, col) => {
+    // 'win = checkWinHelper() || win' must be in that order or checkWinHelper() will not be called on all sliding windows
+    let win = false;
 
     // Pivot on the placed disk
-    for (let i = 0; i < consecutive; i++) {
+    for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
       const leftBound = col - i;
-      const rightBound = col + consecutive - i - 1;
+      const rightBound = col + CONSECUTIVE_TO_WIN - i - 1;
       const topBound = row - i;
-      const bottomBound = row + consecutive - i - 1;
+      const bottomBound = row + CONSECUTIVE_TO_WIN - i - 1;
 
       // Horizontal, right to left
       if (leftBound >= 0 && rightBound < COLS) {
-        if (
-          this.checkConsecutive(
+        win =
+          this.checkWinHelper(
             board,
             row,
             leftBound,
             false,
             true,
             false,
-            false,
-            player,
-            consecutive,
-            addWinClass
-          )
-        ) {
-          consecutiveCount++;
-        }
+            false
+          ) || win;
       }
 
       // Vertical, bottom to top
       if (topBound >= 0 && bottomBound < ROWS) {
-        if (
-          this.checkConsecutive(
+        win =
+          this.checkWinHelper(
             board,
             topBound,
             col,
             true,
             false,
             false,
-            false,
-            player,
-            consecutive,
-            addWinClass
-          )
-        ) {
-          consecutiveCount++;
-        }
+            false
+          ) || win;
       }
 
       // Negative Diagonal, bottom right to top left
@@ -363,26 +208,20 @@ class App extends Component {
         topBound >= 0 &&
         bottomBound < ROWS
       ) {
-        if (
-          this.checkConsecutive(
+        win =
+          this.checkWinHelper(
             board,
             topBound,
             leftBound,
             true,
             true,
             false,
-            false,
-            player,
-            consecutive,
-            addWinClass
-          )
-        ) {
-          consecutiveCount++;
-        }
+            false
+          ) || win;
       }
 
       // Positive Diagonal, bottom left to top right
-      const newLeftBound = col - consecutive + i + 1;
+      const newLeftBound = col - CONSECUTIVE_TO_WIN + i + 1;
       const newRightBound = col + i;
       if (
         newLeftBound >= 0 &&
@@ -390,72 +229,392 @@ class App extends Component {
         topBound >= 0 &&
         bottomBound < ROWS
       ) {
-        if (
-          this.checkConsecutive(
+        win =
+          this.checkWinHelper(
             board,
             topBound,
             newRightBound,
             true,
             true,
             false,
-            true,
-            player,
-            consecutive,
-            addWinClass
-          )
-        ) {
-          consecutiveCount++;
-        }
+            true
+          ) || win;
       }
     }
 
-    return consecutiveCount;
+    return win;
   };
 
-  checkConsecutive = (
+  checkWinHelper = (
     board,
     row,
     col,
     incrementRow,
     incrementCol,
     invertRow,
-    invertCol,
-    player,
-    consecutive,
-    addWinClass
+    invertCol
   ) => {
     // Check if all discs by player
-    for (let offset = 0; offset < consecutive; offset++) {
+    for (let offset = 0; offset < CONSECUTIVE_TO_WIN; offset++) {
       const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
       const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
-      if (board[r][c] !== player) {
+      if (board[r][c] !== this.state.curPlayer) {
         return false;
       }
     }
 
     // Add win class to style button
-    if (addWinClass) {
-      for (let offset = 0; offset < consecutive; offset++) {
-        const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
-        const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
-        const button = document.getElementById(`button-${r}-${c}`);
-        if (!button.classList.contains("win")) {
-          button.classList.add("win");
-        }
+    for (let offset = 0; offset < CONSECUTIVE_TO_WIN; offset++) {
+      const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
+      const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
+      const button = document.getElementById(`button-${r}-${c}`);
+      if (!button.classList.contains("win")) {
+        button.classList.add("win");
       }
     }
 
     return true;
   };
 
-  updateState = (e) => {
-    this.setState(
-      {
-        [e.target.id]: e.target.value,
+  runAI = () => {
+    // Only run AI if not game over
+    if (this.state.winner !== -1) {
+      if (SIMULATE) {
+        if (this.state.winner === 1) {
+          this.p1Wins++;
+        } else if (this.state.winner === 2) {
+          this.p2Wins++;
+        } else {
+          this.draws++;
+        }
+
+        this.matches--;
+
+        if (this.matches === 0) {
+          console.log(
+            `P1: ${this.p1Wins} | P2: ${this.p2Wins} | Draws: ${this.draws}`
+          );
+        } else {
+          this.setNewGame();
+        }
+      }
+      return;
+    }
+
+    clearTimeout(this.timer);
+    this.timer = setTimeout(
+      () => {
+        if (this.state.curPlayer === 1 && this.state.p1 !== 0) {
+          // Run AI for player 1
+          if (this.state.p1 === 1) {
+            this.randomAI();
+          } else if (this.state.p1 === 2) {
+            this.minimaxAI(MINIMAX_EASY_DEPTH);
+          } else if (this.state.p1 === 3) {
+            this.minimaxAI(MINIMAX_NORMAL_DEPTH);
+          } else if (this.state.p1 === 4) {
+            // Neuroevolution
+          } else if (this.state.p1 === 5) {
+            this.minimaxAI(MINIMAX_EXTREME_DEPTH);
+          }
+        } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
+          // Run AI for player 2
+          if (this.state.p2 === 1) {
+            this.randomAI();
+          } else if (this.state.p2 === 2) {
+            this.minimaxAI(MINIMAX_EASY_DEPTH);
+          } else if (this.state.p2 === 3) {
+            this.minimaxAI(MINIMAX_NORMAL_DEPTH);
+          } else if (this.state.p2 === 4) {
+            // Neuroevolution
+          } else if (this.state.p2 === 5) {
+            this.minimaxAI(MINIMAX_EXTREME_DEPTH);
+          }
+        }
       },
-      () => this.runAI()
+      SIMULATE ? 0 : AI_SPEED / this.state.aiSpeed
     );
   };
+
+  randomAI() {
+    const validMoves = this.getValidMoves(this.state.board);
+    const [_, col] = validMoves[Math.floor(Math.random() * validMoves.length)];
+    this.dropDisc(col);
+  }
+
+  minimaxAI(depth) {
+    let maxVal = Number.NEGATIVE_INFINITY;
+    let maxCols = [];
+    for (let [validRow, validCol] of this.getValidMoves(this.state.board)) {
+      const board = this.nextBoard(
+        validRow,
+        validCol,
+        this.state.board,
+        this.state.curPlayer
+      );
+      const val = this.minimax(
+        board,
+        depth - 1,
+        Number.NEGATIVE_INFINITY,
+        Number.POSITIVE_INFINITY,
+        false,
+        this.state.curPlayer
+      );
+      if (val > maxVal) {
+        // New max value
+        maxVal = val;
+
+        // New max columns array
+        maxCols = [validCol];
+      } else if (val === maxVal) {
+        // Same max value, add to array of possible choices
+        maxCols.push(validCol);
+      }
+    }
+    const randMaxCol = maxCols[Math.floor(Math.random() * maxCols.length)];
+    this.dropDisc(randMaxCol);
+  }
+
+  minimax(board, depth, alpha, beta, maximizingPlayer, player) {
+    // Game over when valid moves is empty
+    if (depth === 0 || this.isGameOver(board)) {
+      return this.getHeuristic(board, player);
+    }
+
+    if (maximizingPlayer) {
+      let maxVal = Number.NEGATIVE_INFINITY;
+      for (let [validRow, validCol] of this.getValidMoves(board)) {
+        const nextBoard = this.nextBoard(validRow, validCol, board, player);
+        const val = this.minimax(
+          nextBoard,
+          depth - 1,
+          alpha,
+          beta,
+          false,
+          player
+        );
+        maxVal = Math.max(maxVal, val);
+        alpha = Math.max(alpha, val);
+        if (beta <= alpha) {
+          break;
+        }
+      }
+      return maxVal;
+    } else {
+      let minVal = Number.POSITIVE_INFINITY;
+      for (let [validRow, validCol] of this.getValidMoves(board)) {
+        const nextBoard = this.nextBoard(
+          validRow,
+          validCol,
+          board,
+          (player % 2) + 1
+        );
+        const val = this.minimax(
+          nextBoard,
+          depth - 1,
+          alpha,
+          beta,
+          true,
+          player
+        );
+        minVal = Math.min(minVal, val);
+        beta = Math.min(beta, val);
+        if (beta <= alpha) {
+          break;
+        }
+      }
+      return minVal;
+    }
+  }
+
+  isGameOver(board) {
+    return (
+      this.countWindows(board, 1, CONSECUTIVE_TO_WIN) > 0 ||
+      this.countWindows(board, 2, CONSECUTIVE_TO_WIN) > 0 ||
+      this.isBoardFull(board)
+    );
+  }
+
+  isBoardFull(board) {
+    for (let col = 0; col < COLS; col++) {
+      if (board[0][col] === 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  getHeuristic(board, player) {
+    let weightedSum = 0;
+
+    // Weights increase alternatingly
+    /*
+        p1_4: 1e5
+        p1_3: 1e3
+        p1_2: 1e1
+        p2_2: -1e0
+        p2_3: -1e2
+        p2_4: -1e4
+     */
+    for (let i = 0; i < CONSECUTIVE_TO_WIN - 1; i++) {
+      // Positive
+      weightedSum +=
+        10 ** (2 * i + 1) * this.countWindows(board, player, i + 2);
+
+      // Negative
+      weightedSum -=
+        10 ** (2 * i) * this.countWindows(board, (player % 2) + 1, i + 2);
+    }
+
+    return weightedSum;
+  }
+
+  countWindows(board, player, targetCount) {
+    let count = 0;
+
+    // Horizontal
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS - CONSECUTIVE_TO_WIN + 1; col++) {
+        let playerCount = 0;
+        let emptyCount = 0;
+
+        // Count number of player discs and empty spots
+        for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
+          const val = board[row][col + i];
+
+          if (val === player) {
+            playerCount++;
+          } else if (val === 0) {
+            emptyCount++;
+          }
+        }
+
+        // Check if this window counts
+        if (
+          playerCount === targetCount &&
+          emptyCount === CONSECUTIVE_TO_WIN - playerCount
+        ) {
+          count++;
+        }
+      }
+    }
+
+    // Vertical
+    for (let row = 0; row < ROWS - CONSECUTIVE_TO_WIN + 1; row++) {
+      for (let col = 0; col < COLS; col++) {
+        let playerCount = 0;
+        let emptyCount = 0;
+
+        // Count number of player discs and empty spots
+        for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
+          const val = board[row + i][col];
+
+          if (val === player) {
+            playerCount++;
+          } else if (val === 0) {
+            emptyCount++;
+          }
+        }
+
+        // Check if this window counts
+        if (
+          playerCount === targetCount &&
+          emptyCount === CONSECUTIVE_TO_WIN - playerCount
+        ) {
+          count++;
+        }
+      }
+    }
+
+    // Negative Diagonal
+    for (let row = 0; row < ROWS - CONSECUTIVE_TO_WIN + 1; row++) {
+      for (let col = 0; col < COLS - CONSECUTIVE_TO_WIN + 1; col++) {
+        let playerCount = 0;
+        let emptyCount = 0;
+
+        // Count number of player discs and empty spots
+        for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
+          const val = board[row + i][col + i];
+
+          if (val === player) {
+            playerCount++;
+          } else if (val === 0) {
+            emptyCount++;
+          }
+        }
+
+        // Check if this window counts
+        if (
+          playerCount === targetCount &&
+          emptyCount === CONSECUTIVE_TO_WIN - playerCount
+        ) {
+          count++;
+        }
+      }
+    }
+
+    // Positive Diagonal
+    for (let row = 0; row < ROWS - CONSECUTIVE_TO_WIN + 1; row++) {
+      for (let col = COLS - 1; col > CONSECUTIVE_TO_WIN - 2; col--) {
+        let playerCount = 0;
+        let emptyCount = 0;
+
+        // Count number of player discs and empty spots
+        for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
+          const val = board[row + i][col - i];
+
+          if (val === player) {
+            playerCount++;
+          } else if (val === 0) {
+            emptyCount++;
+          }
+        }
+
+        // Check if this window counts
+        if (
+          playerCount === targetCount &&
+          emptyCount === CONSECUTIVE_TO_WIN - playerCount
+        ) {
+          count++;
+        }
+      }
+    }
+
+    return count;
+  }
+
+  getValidMoves(board) {
+    const validMoves = [];
+    for (let col = 0; col < COLS; col++) {
+      if (board[0][col] === 0) {
+        const row = this.getDropRow(board, col);
+        validMoves.push([row, col]);
+      }
+    }
+    return validMoves;
+  }
+
+  getDropRow(board, col) {
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (board[row][col] === 0) {
+        return row;
+      }
+    }
+    return -1;
+  }
+
+  nextBoard(row, col, board, player) {
+    // Deep copy the board
+    const nextBoard = [];
+    for (let row of board) {
+      nextBoard.push(row.slice());
+    }
+
+    // Set the disc
+    nextBoard[row][col] = player;
+
+    return nextBoard;
+  }
 
   render() {
     let turnText;
@@ -489,7 +648,7 @@ class App extends Component {
             <Select
               options={OPTIONS}
               player={1}
-              onChange={(e) => this.handleSelectChange(e, 1)}
+              onChange={(e) => this.selectPlayer(e, 1)}
             />
           </div>
           <div className="col col-auto pt-3">
@@ -497,7 +656,7 @@ class App extends Component {
             <Select
               options={OPTIONS}
               player={2}
-              onChange={(e) => this.handleSelectChange(e, 2)}
+              onChange={(e) => this.selectPlayer(e, 2)}
             />
           </div>
         </div>
@@ -508,8 +667,7 @@ class App extends Component {
               max={1}
               step={0.01}
               defaultValue={this.state.aiSpeed}
-              id="aiSpeed"
-              onChange={this.updateState}
+              onChange={this.updateAISpeed}
             />
           </div>
         </div>
@@ -520,7 +678,7 @@ class App extends Component {
         </div>
         <div className="row justify-content-center pt-3">
           <div className="col">
-            <Button value="New Game" onClick={this.handleNewGame} />
+            <Button value="New Game" onClick={this.setNewGame} />
           </div>
         </div>
         <div className="row justify-content-center">
