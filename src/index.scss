@@ -88,8 +88,10 @@ td {
   background-color: #bbb;
   @include shadow;
 
-  &:hover {
-    filter: brightness(75%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      filter: brightness(75%);
+    }
   }
 
   &:focus {
