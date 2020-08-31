@@ -7,6 +7,9 @@ import Board from "./components/board";
 import Select from "./components/select";
 import RangeInput from "./components/range-input";
 import Label from "./components/label";
+import NeuralNetwork from "./logic/neural-network";
+import GeneticAlgorithm from "./logic/genetic-algorithm";
+import * as tf from "@tensorflow/tfjs";
 
 const ROWS = 6;
 const COLS = 7;
@@ -29,6 +32,8 @@ const P1 = 1;
 const P2 = 1;
 const MATCHES = 20;
 
+const NEUROEVOLUTION = true;
+
 class App extends Component {
   constructor(props) {
     super(props);
@@ -36,10 +41,12 @@ class App extends Component {
       board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
       curPlayer: 1,
       winner: -1, // -1: game in progress, 0: draw, 1: player 1, 2: player 2
-      p1: 0, // 0: player, 1: easy, 2: normal, 3: hard, 4: crazy
+      p1: 0,
       p2: 0,
       aiSpeed: 0.2,
     };
+
+    tf.setBackend("cpu");
   }
 
   componentDidMount() {
@@ -49,6 +56,21 @@ class App extends Component {
       this.p2Wins = 0;
       this.draws = 0;
       this.setState({ p1: P1, p2: P2 }, () => this.runAI());
+    }
+
+    if (NEUROEVOLUTION) {
+      this.geneticAlgorithm = new GeneticAlgorithm(
+        30,
+        0.1,
+        30,
+        ROWS * COLS,
+        COLS
+      );
+      this.networkGenerator = this.geneticAlgorithm.nextGeneration();
+      this.neuralNetwork = this.networkGenerator.next().value;
+      this.setState({ p1: 4, p2: 2 }, () => this.runAI());
+    } else {
+      // this.neuralNetwork = new NeuralNetwork(model);
     }
   }
 
@@ -298,6 +320,35 @@ class App extends Component {
           this.setNewGame();
         }
       }
+
+      if (NEUROEVOLUTION) {
+        const boardCopy = [];
+        for (const row of this.state.board) {
+          boardCopy.push(row.slice());
+        }
+        const fitness = Math.max(1e4 + this.getHeuristic(boardCopy, 1), 1);
+        this.neuralNetwork.setFitness(fitness);
+        // console.log(this.neuralNetwork, boardCopy);
+
+        // Get next network
+        this.neuralNetwork = this.networkGenerator.next().value;
+
+        if (this.neuralNetwork !== null) {
+          // Next network from same generation
+          this.setNewGame();
+        } else {
+          // Next generation
+          this.networkGenerator = this.geneticAlgorithm.nextGeneration();
+
+          if (this.networkGenerator !== null) {
+            // First network from new generation
+            this.neuralNetwork = this.networkGenerator.next().value;
+            this.setNewGame();
+          } else {
+            // All generations finished
+          }
+        }
+      }
       return;
     }
 
@@ -313,7 +364,7 @@ class App extends Component {
           } else if (this.state.p1 === 3) {
             this.minimaxAI(MINIMAX_NORMAL_DEPTH);
           } else if (this.state.p1 === 4) {
-            // Neuroevolution
+            this.neuroevolutionAI();
           } else if (this.state.p1 === 5) {
             this.minimaxAI(MINIMAX_EXTREME_DEPTH);
           }
@@ -326,13 +377,13 @@ class App extends Component {
           } else if (this.state.p2 === 3) {
             this.minimaxAI(MINIMAX_NORMAL_DEPTH);
           } else if (this.state.p2 === 4) {
-            // Neuroevolution
+            this.neuroevolutionAI();
           } else if (this.state.p2 === 5) {
             this.minimaxAI(MINIMAX_EXTREME_DEPTH);
           }
         }
       },
-      SIMULATE ? 0 : AI_SPEED / this.state.aiSpeed
+      SIMULATE || NEUROEVOLUTION ? 0 : AI_SPEED / this.state.aiSpeed
     );
   };
 
@@ -345,7 +396,7 @@ class App extends Component {
   minimaxAI(depth) {
     let maxVal = Number.NEGATIVE_INFINITY;
     let maxCols = [];
-    for (let [validRow, validCol] of this.getValidMoves(this.state.board)) {
+    for (const [validRow, validCol] of this.getValidMoves(this.state.board)) {
       const board = this.nextBoard(
         validRow,
         validCol,
@@ -383,7 +434,7 @@ class App extends Component {
 
     if (maximizingPlayer) {
       let maxVal = Number.NEGATIVE_INFINITY;
-      for (let [validRow, validCol] of this.getValidMoves(board)) {
+      for (const [validRow, validCol] of this.getValidMoves(board)) {
         const nextBoard = this.nextBoard(validRow, validCol, board, player);
         const val = this.minimax(
           nextBoard,
@@ -402,7 +453,7 @@ class App extends Component {
       return maxVal;
     } else {
       let minVal = Number.POSITIVE_INFINITY;
-      for (let [validRow, validCol] of this.getValidMoves(board)) {
+      for (const [validRow, validCol] of this.getValidMoves(board)) {
         const nextBoard = this.nextBoard(
           validRow,
           validCol,
@@ -425,6 +476,34 @@ class App extends Component {
       }
       return minVal;
     }
+  }
+
+  neuroevolutionAI() {
+    // Flatten board
+    const inputArr = [];
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        inputArr.push(this.state.board[row][col]);
+      }
+    }
+
+    // Get valid columns
+    const validCols = [];
+    for (const [validRow, validCol] of this.getValidMoves(this.state.board)) {
+      validCols.push(validCol);
+    }
+
+    // Network may choose invalid column, just choose by probabilities
+    const outputArr = this.neuralNetwork.predict(inputArr);
+    let col = outputArr.indexOf(Math.max(...outputArr));
+
+    // Keep trying until get a valid move
+    while (!validCols.includes(col)) {
+      outputArr[col] = -1;
+      col = outputArr.indexOf(Math.max(...outputArr));
+    }
+
+    this.dropDisc(col);
   }
 
   isGameOver(board) {
@@ -606,7 +685,7 @@ class App extends Component {
   nextBoard(row, col, board, player) {
     // Deep copy the board
     const nextBoard = [];
-    for (let row of board) {
+    for (const row of board) {
       nextBoard.push(row.slice());
     }
 
