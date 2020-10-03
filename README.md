@@ -1,6 +1,6 @@
 # Connect 4 AI
 
-• Developed Connect 4 AI using neuroevolution  
+• Created Connect 4 AI using Q-learning, NeuroEvolution of Augmenting Topologies (NEAT), and minimax  
 • Skills used: JavaScript, JSX, HTML, CSS, SCSS, Git, React, Bootstrap, Visual Studio Code, TensorFlowJS  
 • Check it out: https://www.ryanlongtran.com/connect4-ai
 
