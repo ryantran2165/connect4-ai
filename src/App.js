@@ -16,23 +16,26 @@ const COLS = 7;
 const CONSECUTIVE_TO_WIN = 4;
 const OPTIONS = [
   "Player",
-  "Drunk (random)",
-  "Easy (2-step minimax)",
-  "Normal (4-step minimax)",
-  "Hard (neuroevolution)",
-  "Extreme (6-step minimax)",
+  "Very easy (random)",
+  "Easy (1-step minimax)",
+  "(WIP) Normal (NEAT)",
+  "Hard (2-step minimax)",
+  "(WIP) Very hard (Q-learning)",
+  "Extreme (4-step minimax)",
+  "Insane (6-step minimax)",
 ];
 const AI_SPEED = 100;
-const MINIMAX_EASY_DEPTH = 2;
-const MINIMAX_NORMAL_DEPTH = 4;
-const MINIMAX_EXTREME_DEPTH = 6;
+const MINIMAX_DEPTH_1 = 1;
+const MINIMAX_DEPTH_2 = 2;
+const MINIMAX_DEPTH_4 = 4;
+const MINIMAX_DEPTH_6 = 6;
 
 const SIMULATE = false;
 const P1 = 1;
 const P2 = 1;
 const MATCHES = 20;
 
-const NEUROEVOLUTION = true;
+const NEAT = false;
 
 class App extends Component {
   constructor(props) {
@@ -58,7 +61,7 @@ class App extends Component {
       this.setState({ p1: P1, p2: P2 }, () => this.runAI());
     }
 
-    if (NEUROEVOLUTION) {
+    if (NEAT) {
       this.geneticAlgorithm = new GeneticAlgorithm(
         30,
         0.1,
@@ -321,7 +324,7 @@ class App extends Component {
         }
       }
 
-      if (NEUROEVOLUTION) {
+      if (NEAT) {
         const boardCopy = [];
         for (const row of this.state.board) {
           boardCopy.push(row.slice());
@@ -360,30 +363,38 @@ class App extends Component {
           if (this.state.p1 === 1) {
             this.randomAI();
           } else if (this.state.p1 === 2) {
-            this.minimaxAI(MINIMAX_EASY_DEPTH);
+            this.minimaxAI(MINIMAX_DEPTH_1);
           } else if (this.state.p1 === 3) {
-            this.minimaxAI(MINIMAX_NORMAL_DEPTH);
+            this.neatAI();
           } else if (this.state.p1 === 4) {
-            this.neuroevolutionAI();
+            this.minimaxAI(MINIMAX_DEPTH_2);
           } else if (this.state.p1 === 5) {
-            this.minimaxAI(MINIMAX_EXTREME_DEPTH);
+            this.qlearningAI();
+          } else if (this.state.p1 === 6) {
+            this.minimaxAI(MINIMAX_DEPTH_4);
+          } else if (this.state.p1 === 7) {
+            this.minimaxAI(MINIMAX_DEPTH_6);
           }
         } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
           // Run AI for player 2
           if (this.state.p2 === 1) {
             this.randomAI();
           } else if (this.state.p2 === 2) {
-            this.minimaxAI(MINIMAX_EASY_DEPTH);
+            this.minimaxAI(MINIMAX_DEPTH_1);
           } else if (this.state.p2 === 3) {
-            this.minimaxAI(MINIMAX_NORMAL_DEPTH);
+            this.neatAI();
           } else if (this.state.p2 === 4) {
-            this.neuroevolutionAI();
+            this.minimaxAI(MINIMAX_DEPTH_2);
           } else if (this.state.p2 === 5) {
-            this.minimaxAI(MINIMAX_EXTREME_DEPTH);
+            this.qlearningAI();
+          } else if (this.state.p2 === 6) {
+            this.minimaxAI(MINIMAX_DEPTH_4);
+          } else if (this.state.p2 === 7) {
+            this.minimaxAI(MINIMAX_DEPTH_6);
           }
         }
       },
-      SIMULATE || NEUROEVOLUTION ? 0 : AI_SPEED / this.state.aiSpeed
+      SIMULATE || NEAT ? 0 : AI_SPEED / this.state.aiSpeed
     );
   };
 
@@ -446,7 +457,7 @@ class App extends Component {
         );
         maxVal = Math.max(maxVal, val);
         alpha = Math.max(alpha, val);
-        if (beta <= alpha) {
+        if (alpha >= beta) {
           break;
         }
       }
@@ -478,33 +489,31 @@ class App extends Component {
     }
   }
 
-  neuroevolutionAI() {
-    // Flatten board
-    const inputArr = [];
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
-        inputArr.push(this.state.board[row][col]);
-      }
-    }
-
-    // Get valid columns
-    const validCols = [];
-    for (const [validRow, validCol] of this.getValidMoves(this.state.board)) {
-      validCols.push(validCol);
-    }
-
-    // Network may choose invalid column, just choose by probabilities
-    const outputArr = this.neuralNetwork.predict(inputArr);
-    let col = outputArr.indexOf(Math.max(...outputArr));
-
-    // Keep trying until get a valid move
-    while (!validCols.includes(col)) {
-      outputArr[col] = -1;
-      col = outputArr.indexOf(Math.max(...outputArr));
-    }
-
-    this.dropDisc(col);
+  neatAI() {
+    // // Flatten board
+    // const inputArr = [];
+    // for (let row = 0; row < ROWS; row++) {
+    //   for (let col = 0; col < COLS; col++) {
+    //     inputArr.push(this.state.board[row][col]);
+    //   }
+    // }
+    // // Get valid columns
+    // const validCols = [];
+    // for (const [validRow, validCol] of this.getValidMoves(this.state.board)) {
+    //   validCols.push(validCol);
+    // }
+    // // Network may choose invalid column, just choose by probabilities
+    // const outputArr = this.neuralNetwork.predict(inputArr);
+    // let col = outputArr.indexOf(Math.max(...outputArr));
+    // // Keep trying until get a valid move
+    // while (!validCols.includes(col)) {
+    //   outputArr[col] = -1;
+    //   col = outputArr.indexOf(Math.max(...outputArr));
+    // }
+    // this.dropDisc(col);
   }
+
+  qlearningAI() {}
 
   isGameOver(board) {
     return (
