@@ -7,8 +7,6 @@ import Board from "./components/board";
 import Select from "./components/select";
 import RangeInput from "./components/range-input";
 import Label from "./components/label";
-import NeuralNetwork from "./logic/neural-network";
-import GeneticAlgorithm from "./logic/genetic-algorithm";
 import * as tf from "@tensorflow/tfjs";
 
 const ROWS = 6;
@@ -18,11 +16,10 @@ const OPTIONS = [
   "Player",
   "Very easy (random)",
   "Easy (1-step minimax)",
-  "(WIP) Normal (NEAT)",
-  "Hard (2-step minimax)",
-  "(WIP) Very hard (Q-learning)",
-  "Extreme (4-step minimax)",
-  "Insane (6-step minimax)",
+  "Normal (2-step minimax)",
+  "(WIP) Hard (Q-learning)",
+  "Very hard (4-step minimax)",
+  "Extreme (6-step minimax)",
 ];
 const AI_SPEED = 100;
 const MINIMAX_DEPTH_1 = 1;
@@ -34,8 +31,6 @@ const SIMULATE = false;
 const P1 = 1;
 const P2 = 1;
 const MATCHES = 20;
-
-const NEAT = false;
 
 class App extends Component {
   constructor(props) {
@@ -59,21 +54,6 @@ class App extends Component {
       this.p2Wins = 0;
       this.draws = 0;
       this.setState({ p1: P1, p2: P2 }, () => this.runAI());
-    }
-
-    if (NEAT) {
-      this.geneticAlgorithm = new GeneticAlgorithm(
-        30,
-        0.1,
-        30,
-        ROWS * COLS,
-        COLS
-      );
-      this.networkGenerator = this.geneticAlgorithm.nextGeneration();
-      this.neuralNetwork = this.networkGenerator.next().value;
-      this.setState({ p1: 4, p2: 2 }, () => this.runAI());
-    } else {
-      // this.neuralNetwork = new NeuralNetwork(model);
     }
   }
 
@@ -119,15 +99,9 @@ class App extends Component {
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
         const button = document.getElementById(`button-${row}-${col}`);
-        if (button.classList.contains("p1")) {
-          button.classList.remove("p1");
-        }
-        if (button.classList.contains("p2")) {
-          button.classList.remove("p2");
-        }
-        if (button.classList.contains("win")) {
-          button.classList.remove("win");
-        }
+        button.classList.remove("p1");
+        button.classList.remove("p2");
+        button.classList.remove("win");
       }
     }
   };
@@ -293,9 +267,7 @@ class App extends Component {
       const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
       const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
       const button = document.getElementById(`button-${r}-${c}`);
-      if (!button.classList.contains("win")) {
-        button.classList.add("win");
-      }
+      button.classList.add("win");
     }
 
     return true;
@@ -324,37 +296,10 @@ class App extends Component {
         }
       }
 
-      if (NEAT) {
-        const boardCopy = [];
-        for (const row of this.state.board) {
-          boardCopy.push(row.slice());
-        }
-        const fitness = Math.max(1e4 + this.getHeuristic(boardCopy, 1), 1);
-        this.neuralNetwork.setFitness(fitness);
-        // console.log(this.neuralNetwork, boardCopy);
-
-        // Get next network
-        this.neuralNetwork = this.networkGenerator.next().value;
-
-        if (this.neuralNetwork !== null) {
-          // Next network from same generation
-          this.setNewGame();
-        } else {
-          // Next generation
-          this.networkGenerator = this.geneticAlgorithm.nextGeneration();
-
-          if (this.networkGenerator !== null) {
-            // First network from new generation
-            this.neuralNetwork = this.networkGenerator.next().value;
-            this.setNewGame();
-          } else {
-            // All generations finished
-          }
-        }
-      }
       return;
     }
 
+    // Game not over
     clearTimeout(this.timer);
     this.timer = setTimeout(
       () => {
@@ -365,14 +310,12 @@ class App extends Component {
           } else if (this.state.p1 === 2) {
             this.minimaxAI(MINIMAX_DEPTH_1);
           } else if (this.state.p1 === 3) {
-            this.neatAI();
-          } else if (this.state.p1 === 4) {
             this.minimaxAI(MINIMAX_DEPTH_2);
+          } else if (this.state.p1 === 4) {
+            this.qLearningAI();
           } else if (this.state.p1 === 5) {
-            this.qlearningAI();
-          } else if (this.state.p1 === 6) {
             this.minimaxAI(MINIMAX_DEPTH_4);
-          } else if (this.state.p1 === 7) {
+          } else if (this.state.p1 === 6) {
             this.minimaxAI(MINIMAX_DEPTH_6);
           }
         } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
@@ -382,19 +325,17 @@ class App extends Component {
           } else if (this.state.p2 === 2) {
             this.minimaxAI(MINIMAX_DEPTH_1);
           } else if (this.state.p2 === 3) {
-            this.neatAI();
-          } else if (this.state.p2 === 4) {
             this.minimaxAI(MINIMAX_DEPTH_2);
+          } else if (this.state.p2 === 4) {
+            this.qLearningAI();
           } else if (this.state.p2 === 5) {
-            this.qlearningAI();
-          } else if (this.state.p2 === 6) {
             this.minimaxAI(MINIMAX_DEPTH_4);
-          } else if (this.state.p2 === 7) {
+          } else if (this.state.p2 === 6) {
             this.minimaxAI(MINIMAX_DEPTH_6);
           }
         }
       },
-      SIMULATE || NEAT ? 0 : AI_SPEED / this.state.aiSpeed
+      SIMULATE ? 0 : AI_SPEED / this.state.aiSpeed
     );
   };
 
@@ -489,31 +430,7 @@ class App extends Component {
     }
   }
 
-  neatAI() {
-    // // Flatten board
-    // const inputArr = [];
-    // for (let row = 0; row < ROWS; row++) {
-    //   for (let col = 0; col < COLS; col++) {
-    //     inputArr.push(this.state.board[row][col]);
-    //   }
-    // }
-    // // Get valid columns
-    // const validCols = [];
-    // for (const [validRow, validCol] of this.getValidMoves(this.state.board)) {
-    //   validCols.push(validCol);
-    // }
-    // // Network may choose invalid column, just choose by probabilities
-    // const outputArr = this.neuralNetwork.predict(inputArr);
-    // let col = outputArr.indexOf(Math.max(...outputArr));
-    // // Keep trying until get a valid move
-    // while (!validCols.includes(col)) {
-    //   outputArr[col] = -1;
-    //   col = outputArr.indexOf(Math.max(...outputArr));
-    // }
-    // this.dropDisc(col);
-  }
-
-  qlearningAI() {}
+  qLearningAI() {}
 
   isGameOver(board) {
     return (

@@ -1,6 +1,6 @@
 # Connect 4 AI
 
-• Implemented Connect 4 AI web app with varying difficulties using Q-learning, NeuroEvolution of Augmenting Topologies (NEAT), and minimax  
+• Implemented Connect 4 AI web app with varying difficulties using deep Q-learning and minimax  
 • JavaScript/JSX, HTML, CSS/SASS | React, Bootstrap | Git | TensorFlowJS  
 • https://www.ryanlongtran.com/connect4-ai
 
