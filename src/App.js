@@ -7,7 +7,7 @@ import Board from "./components/board";
 import Select from "./components/select";
 import RangeInput from "./components/range-input";
 import Label from "./components/label";
-import * as tf from "@tensorflow/tfjs";
+import { test } from "./logic/train";
 
 const ROWS = 6;
 const COLS = 7;
@@ -17,7 +17,7 @@ const OPTIONS = [
   "Very easy (random)",
   "Easy (1-step minimax)",
   "Normal (2-step minimax)",
-  "(WIP) Hard (Q-learning)",
+  "(WIP) Hard (deep Q-learning)",
   "Very hard (4-step minimax)",
   "Extreme (6-step minimax)",
 ];
@@ -26,6 +26,19 @@ const MINIMAX_DEPTH_1 = 1;
 const MINIMAX_DEPTH_2 = 2;
 const MINIMAX_DEPTH_4 = 4;
 const MINIMAX_DEPTH_6 = 6;
+
+const MODE_PLAYER = 0;
+const MODE_VERY_EASY = 1;
+const MODE_EASY = 2;
+const MODE_NORMAL = 3;
+const MODE_HARD = 4;
+const MODE_VERY_HARD = 5;
+const MODE_EXTREME = 6;
+
+const GAME_IN_PROGRESS = -1;
+const DRAW = 0;
+const PLAYER_1 = 1;
+const PLAYER_2 = 2;
 
 const SIMULATE = false;
 const P1 = 1;
@@ -37,14 +50,12 @@ class App extends Component {
     super(props);
     this.state = {
       board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
-      curPlayer: 1,
-      winner: -1, // -1: game in progress, 0: draw, 1: player 1, 2: player 2
-      p1: 0,
-      p2: 0,
+      curPlayer: PLAYER_1,
+      winner: GAME_IN_PROGRESS,
+      p1Mode: MODE_PLAYER,
+      p2Mode: MODE_PLAYER,
       aiSpeed: 0.2,
     };
-
-    tf.setBackend("cpu");
   }
 
   componentDidMount() {
@@ -53,22 +64,24 @@ class App extends Component {
       this.p1Wins = 0;
       this.p2Wins = 0;
       this.draws = 0;
-      this.setState({ p1: P1, p2: P2 }, () => this.runAI());
+      this.setState({ p1Mode: P1, p2Mode: P2 }, () => this.runAI());
     }
+
+    test();
   }
 
   selectPlayer = (e, player) => {
-    if (player === 1) {
+    if (player === PLAYER_1) {
       this.setState(
         {
-          p1: e.target.selectedIndex,
+          p1Mode: e.target.selectedIndex,
         },
         () => this.runAI()
       );
-    } else if (player === 2) {
+    } else if (player === PLAYER_2) {
       this.setState(
         {
-          p2: e.target.selectedIndex,
+          p2Mode: e.target.selectedIndex,
         },
         () => this.runAI()
       );
@@ -85,12 +98,12 @@ class App extends Component {
   };
 
   setNewGame = () => {
-    // Reset board and choose random player to start
+    // Reset board
     this.setState(
       {
         board: new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0)),
-        curPlayer: 1,
-        winner: -1,
+        curPlayer: PLAYER_1,
+        winner: GAME_IN_PROGRESS,
       },
       () => this.runAI()
     );
@@ -109,8 +122,9 @@ class App extends Component {
   handlePlayerClick = (col) => {
     // Don't allow player to drop disc when AI's turn
     if (
-      (this.state.curPlayer === 1 && this.state.p1 === 0) ||
-      (this.state.curPlayer === 2 && this.state.p2 === 0)
+      (this.state.curPlayer === PLAYER_1 &&
+        this.state.p1Mode === MODE_PLAYER) ||
+      (this.state.curPlayer === PLAYER_2 && this.state.p2Mode === MODE_PLAYER)
     ) {
       this.dropDisc(col);
     }
@@ -118,7 +132,7 @@ class App extends Component {
 
   dropDisc = (col) => {
     // Don't allow drop if game over
-    if (this.state.winner !== -1) {
+    if (this.state.winner !== GAME_IN_PROGRESS) {
       return;
     }
 
@@ -142,12 +156,12 @@ class App extends Component {
     );
 
     // Win
-    let winner = -1;
+    let winner = GAME_IN_PROGRESS;
     if (this.checkWin(board, row, col)) {
       winner = this.state.curPlayer;
     } else if (this.isBoardFull(board)) {
       // Draw
-      winner = 0;
+      winner = DRAW;
     }
 
     // Update board and current player
@@ -165,7 +179,7 @@ class App extends Component {
     // 'win = checkWinHelper() || win' must be in that order or checkWinHelper() will not be called on all sliding windows
     let win = false;
 
-    // Pivot on the placed disk
+    // Pivot on the placed disc
     for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
       const leftBound = col - i;
       const rightBound = col + CONSECUTIVE_TO_WIN - i - 1;
@@ -275,11 +289,11 @@ class App extends Component {
 
   runAI = () => {
     // Only run AI if not game over
-    if (this.state.winner !== -1) {
+    if (this.state.winner !== GAME_IN_PROGRESS) {
       if (SIMULATE) {
-        if (this.state.winner === 1) {
+        if (this.state.winner === PLAYER_1) {
           this.p1Wins++;
-        } else if (this.state.winner === 2) {
+        } else if (this.state.winner === PLAYER_2) {
           this.p2Wins++;
         } else {
           this.draws++;
@@ -303,34 +317,40 @@ class App extends Component {
     clearTimeout(this.timer);
     this.timer = setTimeout(
       () => {
-        if (this.state.curPlayer === 1 && this.state.p1 !== 0) {
+        if (
+          this.state.curPlayer === PLAYER_1 &&
+          this.state.p1Mode !== MODE_PLAYER
+        ) {
           // Run AI for player 1
-          if (this.state.p1 === 1) {
+          if (this.state.p1Mode === MODE_VERY_EASY) {
             this.randomAI();
-          } else if (this.state.p1 === 2) {
+          } else if (this.state.p1Mode === MODE_EASY) {
             this.minimaxAI(MINIMAX_DEPTH_1);
-          } else if (this.state.p1 === 3) {
+          } else if (this.state.p1Mode === MODE_NORMAL) {
             this.minimaxAI(MINIMAX_DEPTH_2);
-          } else if (this.state.p1 === 4) {
+          } else if (this.state.p1Mode === MODE_HARD) {
             this.qLearningAI();
-          } else if (this.state.p1 === 5) {
+          } else if (this.state.p1Mode === MODE_VERY_HARD) {
             this.minimaxAI(MINIMAX_DEPTH_4);
-          } else if (this.state.p1 === 6) {
+          } else if (this.state.p1Mode === MODE_EXTREME) {
             this.minimaxAI(MINIMAX_DEPTH_6);
           }
-        } else if (this.state.curPlayer === 2 && this.state.p2 !== 0) {
+        } else if (
+          this.state.curPlayer === PLAYER_2 &&
+          this.state.p2Mode !== MODE_PLAYER
+        ) {
           // Run AI for player 2
-          if (this.state.p2 === 1) {
+          if (this.state.p2Mode === MODE_VERY_EASY) {
             this.randomAI();
-          } else if (this.state.p2 === 2) {
+          } else if (this.state.p2Mode === MODE_EASY) {
             this.minimaxAI(MINIMAX_DEPTH_1);
-          } else if (this.state.p2 === 3) {
+          } else if (this.state.p2Mode === MODE_NORMAL) {
             this.minimaxAI(MINIMAX_DEPTH_2);
-          } else if (this.state.p2 === 4) {
+          } else if (this.state.p2Mode === MODE_HARD) {
             this.qLearningAI();
-          } else if (this.state.p2 === 5) {
+          } else if (this.state.p2Mode === MODE_VERY_HARD) {
             this.minimaxAI(MINIMAX_DEPTH_4);
-          } else if (this.state.p2 === 6) {
+          } else if (this.state.p2Mode === MODE_EXTREME) {
             this.minimaxAI(MINIMAX_DEPTH_6);
           }
         }
@@ -623,8 +643,8 @@ class App extends Component {
 
   render() {
     let turnText;
-    if (this.state.winner !== -1) {
-      if (this.state.winner === 0) {
+    if (this.state.winner !== GAME_IN_PROGRESS) {
+      if (this.state.winner === DRAW) {
         turnText = "Draw";
       } else {
         turnText = `Player ${this.state.winner} wins`;
@@ -638,62 +658,52 @@ class App extends Component {
         <div className="row">
           <div className="col">
             <Title text="Connect 4 AI" />
-          </div>
-        </div>
-        <div className="row">
-          <div className="col">
             <Description
               text={"Play versus Player/AI or watch AI play against AI."}
             />
-          </div>
-        </div>
-        <div className="row justify-content-center">
-          <div className="col col-auto pt-3">
-            <h4>Player 1</h4>
-            <Select
-              options={OPTIONS}
-              player={1}
-              onChange={(e) => this.selectPlayer(e, 1)}
-            />
-          </div>
-          <div className="col col-auto pt-3">
-            <h4>Player 2</h4>
-            <Select
-              options={OPTIONS}
-              player={2}
-              onChange={(e) => this.selectPlayer(e, 2)}
-            />
-          </div>
-        </div>
-        <div className="row justify-content-center pt-3">
-          <div className="col col-10 col-sm-8 col-md-6 col-lg-4 col-xl-2">
-            <RangeInput
-              min={0.01}
-              max={1}
-              step={0.01}
-              defaultValue={this.state.aiSpeed}
-              onChange={this.updateAISpeed}
-            />
-          </div>
-        </div>
-        <div className="row">
-          <div className="col">
+            <div className="row justify-content-center">
+              <div className="col col-auto pt-3">
+                <h4>Player 1</h4>
+                <Select
+                  options={OPTIONS}
+                  player={1}
+                  onChange={(e) => this.selectPlayer(e, 1)}
+                />
+              </div>
+              <div className="col col-auto pt-3">
+                <h4>Player 2</h4>
+                <Select
+                  options={OPTIONS}
+                  player={2}
+                  onChange={(e) => this.selectPlayer(e, 2)}
+                />
+              </div>
+            </div>
+            <div className="row justify-content-center pt-3">
+              <div className="col col-10 col-sm-8 col-md-6 col-lg-4 col-xl-2">
+                <RangeInput
+                  min={0.01}
+                  max={1}
+                  step={0.01}
+                  defaultValue={this.state.aiSpeed}
+                  onChange={this.updateAISpeed}
+                />
+              </div>
+            </div>
             <Label text="AI speed" value={this.state.aiSpeed} />
-          </div>
-        </div>
-        <div className="row justify-content-center pt-3">
-          <div className="col">
-            <Button value="New Game" onClick={this.setNewGame} />
-          </div>
-        </div>
-        <div className="row justify-content-center">
-          <div className="col col-auto pt-5">
-            <h4>{turnText}</h4>
-          </div>
-        </div>
-        <div className="row justify-content-center pt-3">
-          <div className="col col-auto">
-            <Board ROWS={ROWS} COLS={COLS} onClick={this.handlePlayerClick} />
+            <div className="mt-3">
+              <Button value="New Game" onClick={this.setNewGame} />
+            </div>
+            <h4 className="mt-5">{turnText}</h4>
+            <div className="row justify-content-center pt-3">
+              <div className="col col-auto">
+                <Board
+                  ROWS={ROWS}
+                  COLS={COLS}
+                  onClick={this.handlePlayerClick}
+                />
+              </div>
+            </div>
           </div>
         </div>
         <GithubCorner
