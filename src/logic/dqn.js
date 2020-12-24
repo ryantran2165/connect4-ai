@@ -4,25 +4,41 @@ import { ROWS, COLS } from "./constants";
 export function createDQN() {
   const model = tf.sequential();
 
+  // model.add(
+  //   tf.layers.conv2d({
+  //     inputShape: [ROWS, COLS, 1], // 1 channel depth
+  //     kernelSize: 4,
+  //     filters: 8,
+  //     strides: 1,
+  //     activation: "relu",
+  //   })
+  // );
+  // model.add(
+  //   tf.layers.conv2d({
+  //     kernelSize: 2,
+  //     filters: 16,
+  //     strides: 1,
+  //     activation: "relu",
+  //   })
+  // );
+  // model.add(tf.layers.flatten());
+  // model.add(tf.layers.dense({ units: 64, activation: "relu" }));
+  // model.add(tf.layers.dense({ units: COLS })); // Outputs are actions (columns)
+
   model.add(
     tf.layers.conv2d({
       inputShape: [ROWS, COLS, 1], // 1 channel depth
       kernelSize: 4,
-      filters: 8,
-      strides: 1,
-      activation: "relu",
-    })
-  );
-  model.add(
-    tf.layers.conv2d({
-      kernelSize: 2,
-      filters: 16,
+      filters: 32,
       strides: 1,
       activation: "relu",
     })
   );
   model.add(tf.layers.flatten());
-  model.add(tf.layers.dense({ units: 64, activation: "relu" }));
+  model.add(tf.layers.dense({ units: 32, activation: "relu" }));
+  model.add(tf.layers.dropout({ rate: 0.2 }));
+  model.add(tf.layers.dense({ units: 32, activation: "relu" }));
+  model.add(tf.layers.dropout({ rate: 0.2 }));
   model.add(tf.layers.dense({ units: COLS })); // Outputs are actions (columns)
 
   return model;

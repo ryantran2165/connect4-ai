@@ -11,15 +11,17 @@ import {
 
 const AVERAGER_BUFFER_LENGTH = 100;
 
-export async function test() {}
-
 export async function train() {
   const game = new Connect4Game();
   const agent = new Connect4Agent(game);
 
   // Fill replay buffer with initial experiences
-  for (let i = 0; i < REPLAY_BUFFER_SIZE; i++) {
+  for (let i = 1; i <= REPLAY_BUFFER_SIZE; i++) {
     agent.playStep();
+
+    if (i % (REPLAY_BUFFER_SIZE / 10) === 0) {
+      console.log(`Initializing replay buffer: ${i}/${REPLAY_BUFFER_SIZE}`);
+    }
   }
 
   const optimizer = tf.train.adam(LEARNING_RATE);
@@ -27,17 +29,19 @@ export async function train() {
   // Stats
   let tPrev = new Date().getTime();
   let frameCountPrev = agent.frameCount;
-  let bestAverageReward = -Infinity;
   const averager = new Averager(AVERAGER_BUFFER_LENGTH);
 
   // Train for given number of episodes
-  for (let i = 0; i < NUM_EPISODES; i++) {
-    while (true) {
+  for (let episode = 1; episode <= NUM_EPISODES; episode++) {
+    let done = false;
+
+    while (!done) {
       // Update weights
       agent.trainOnReplayBatch(optimizer);
 
       // Step agent
-      const { reward, done } = agent.playStep();
+      let reward;
+      ({ reward, done } = agent.playStep());
 
       // Episode done
       if (done) {
@@ -52,19 +56,12 @@ export async function train() {
         const averageReward = averager.average();
 
         console.log(
-          `Frame #${agent.frameCount}: ` +
+          `Episode #${episode}: ` +
+            `Frame count=${agent.frameCount} ` +
             `Average reward=${averageReward.toFixed(2)} ` +
             `Epsilon=${agent.epsilon.toFixed(3)} ` +
             `FPS=${fps.toFixed(1)}`
         );
-
-        // New best average, save DQN to cloud
-        if (averageReward > bestAverageReward) {
-          bestAverageReward = averageReward;
-
-          await agent.onlineNetwork.save("");
-          console.log(`Saved DQN with average reward=${bestAverageReward}`);
-        }
       }
 
       // Sync weights for target network with online network
@@ -73,6 +70,8 @@ export async function train() {
       }
     }
   }
+
+  await agent.onlineNetwork.save("downloads://my_model");
 }
 
 class Averager {

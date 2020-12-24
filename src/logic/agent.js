@@ -97,35 +97,45 @@ export class Connect4Agent {
     // Only choose from valid actions
     const validActions = this.game.getValidActions();
 
-    return validActions[validActions.length * Math.random()];
+    return validActions[Math.floor(validActions.length * Math.random())];
   }
 
   getBestAction(invertState) {
-    // Only choose from valid actions
-    const validActions = this.game.getValidActions();
-    let bestAction;
-
     // Clean memory
-    tf.tidy(() => {
+    return tf.tidy(() => {
       // Get correct state representation
       const state = invertState
         ? this.game.getInvertedState()
         : this.game.getState();
       const stateTensor = getStateTensor(state);
 
-      // Get q-values for each action
-      let qs = this.onlineNetwork.predict(stateTensor).dataSync()[0];
+      // Get q-values for each action as an array
+      const qs = Array.from(this.onlineNetwork.predict(stateTensor).dataSync());
 
-      // Get largest q-value
-      bestAction = qs.pop();
+      // Mask valid actions
+      const validActions = this.game.getValidActions();
+      const qActions = [];
 
-      // While not valid action, keep looking for next largest q-value
-      while (!validActions.includes(bestAction)) {
-        bestAction = qs.pop();
-      }
+      // Save q-action pairs
+      qs.forEach((q, action) => {
+        if (validActions.includes(action)) {
+          qActions.push({ q, action });
+        }
+      });
+
+      // Get best action by max q-value
+      let maxQ = -Infinity;
+      let bestAction = -1;
+
+      qActions.forEach((qAction) => {
+        if (qAction.q > maxQ) {
+          maxQ = qAction.q;
+          bestAction = qAction.action;
+        }
+      });
+
+      return bestAction;
     });
-
-    return bestAction;
   }
 
   trainOnReplayBatch(optimizer) {
@@ -151,7 +161,7 @@ export class Connect4Agent {
 
         // Shape: [batch size], predicted q-value for each example
         const qs = this.onlineNetwork
-          .predict(stateTensor) // Shape: [batch size, cols]
+          .apply(stateTensor) // Shape: [batch size, cols], I believe apply differs from predict
           .mul(actionMask) // Element-wise mul
           .sum(-1); // Collapse columns
 
@@ -174,7 +184,7 @@ export class Connect4Agent {
         const doneMask = tf
           .scalar(1)
           .sub(
-            tf.tensor1d(batch.map((example) => example[4]).asType("float32"))
+            tf.tensor1d(batch.map((example) => example[4])).asType("float32")
           );
 
         // Always include immediate reward, but exclude rewards if done

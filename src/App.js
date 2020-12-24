@@ -7,7 +7,13 @@ import Board from "./components/board";
 import Select from "./components/select";
 import RangeInput from "./components/range-input";
 import Label from "./components/label";
-import { test } from "./logic/train";
+import { train } from "./logic/train";
+import {
+  getInvertedState,
+  getValidActions,
+  getStateTensor,
+} from "./logic/game";
+import * as tf from "@tensorflow/tfjs";
 
 const ROWS = 6;
 const COLS = 7;
@@ -21,7 +27,7 @@ const OPTIONS = [
   "Very hard (4-step minimax)",
   "Extreme (6-step minimax)",
 ];
-const AI_SPEED = 100;
+const MAX_AI_SPEED_SECONDS = 0.01;
 const MINIMAX_DEPTH_1 = 1;
 const MINIMAX_DEPTH_2 = 2;
 const MINIMAX_DEPTH_4 = 4;
@@ -35,15 +41,17 @@ const MODE_HARD = 4;
 const MODE_VERY_HARD = 5;
 const MODE_EXTREME = 6;
 
-const GAME_IN_PROGRESS = -1;
-const DRAW = 0;
+const GAME_IN_PROGRESS = 2;
 const PLAYER_1 = 1;
-const PLAYER_2 = 2;
+const DRAW = 0;
+const PLAYER_2 = -1;
 
 const SIMULATE = false;
-const P1 = 1;
-const P2 = 1;
-const MATCHES = 20;
+const P1_MODE = MODE_HARD;
+const P2_MODE = MODE_NORMAL;
+const MATCHES = 100;
+
+const TRAIN_Q_LEARNING = false;
 
 class App extends Component {
   constructor(props) {
@@ -54,20 +62,30 @@ class App extends Component {
       winner: GAME_IN_PROGRESS,
       p1Mode: MODE_PLAYER,
       p2Mode: MODE_PLAYER,
-      aiSpeed: 0.2,
+      aiSpeed: 0.02,
     };
   }
 
   componentDidMount() {
+    if (TRAIN_Q_LEARNING) {
+      train();
+    } else {
+      this.loadModel();
+    }
+  }
+
+  async loadModel() {
+    this.model = await tf.loadLayersModel(
+      "https://connect4-ai.storage.googleapis.com/my_model.json"
+    );
+
     if (SIMULATE) {
       this.matches = MATCHES;
       this.p1Wins = 0;
       this.p2Wins = 0;
       this.draws = 0;
-      this.setState({ p1Mode: P1, p2Mode: P2 }, () => this.runAI());
+      this.setState({ p1Mode: P1_MODE, p2Mode: P2_MODE }, () => this.runAI());
     }
-
-    test();
   }
 
   selectPlayer = (e, player) => {
@@ -145,7 +163,7 @@ class App extends Component {
 
     // Add player class to button to change style
     const button = document.getElementById(`button-${row}-${col}`);
-    button.classList.add(`p${this.state.curPlayer}`);
+    button.classList.add(`p${this.state.curPlayer === PLAYER_1 ? "1" : "2"}`);
 
     // Copy board and drop disc
     const board = this.nextBoard(
@@ -168,7 +186,7 @@ class App extends Component {
     this.setState(
       {
         board: board,
-        curPlayer: (this.state.curPlayer % 2) + 1,
+        curPlayer: this.state.curPlayer === PLAYER_1 ? PLAYER_2 : PLAYER_1,
         winner: winner,
       },
       () => this.runAI()
@@ -355,7 +373,7 @@ class App extends Component {
           }
         }
       },
-      SIMULATE ? 0 : AI_SPEED / this.state.aiSpeed
+      SIMULATE ? 0 : (1000 * MAX_AI_SPEED_SECONDS) / this.state.aiSpeed
     );
   };
 
@@ -430,7 +448,7 @@ class App extends Component {
           validRow,
           validCol,
           board,
-          (player % 2) + 1
+          player === PLAYER_1 ? PLAYER_2 : PLAYER_1
         );
         const val = this.minimax(
           nextBoard,
@@ -450,12 +468,49 @@ class App extends Component {
     }
   }
 
-  qLearningAI() {}
+  qLearningAI() {
+    // Clean memory
+    tf.tidy(() => {
+      // Get correct state representation
+      const state =
+        this.state.curPlayer === PLAYER_2
+          ? getInvertedState(this.state.board)
+          : this.state.board;
+      const stateTensor = getStateTensor(state);
+
+      // Get q-values for each action as an array
+      const qs = Array.from(this.model.predict(stateTensor).dataSync());
+
+      // Mask valid actions
+      const validActions = getValidActions(this.state.board);
+      const qActions = [];
+
+      // Save q-action pairs
+      qs.forEach((q, action) => {
+        if (validActions.includes(action)) {
+          qActions.push({ q, action });
+        }
+      });
+
+      // Get best action by max q-value
+      let maxQ = -Infinity;
+      let bestAction = -1;
+
+      qActions.forEach((qAction) => {
+        if (qAction.q > maxQ) {
+          maxQ = qAction.q;
+          bestAction = qAction.action;
+        }
+      });
+
+      this.dropDisc(bestAction);
+    });
+  }
 
   isGameOver(board) {
     return (
-      this.countWindows(board, 1, CONSECUTIVE_TO_WIN) > 0 ||
-      this.countWindows(board, 2, CONSECUTIVE_TO_WIN) > 0 ||
+      this.countWindows(board, PLAYER_1, CONSECUTIVE_TO_WIN) > 0 ||
+      this.countWindows(board, PLAYER_2, CONSECUTIVE_TO_WIN) > 0 ||
       this.isBoardFull(board)
     );
   }
@@ -488,7 +543,12 @@ class App extends Component {
 
       // Negative
       weightedSum -=
-        10 ** (2 * i) * this.countWindows(board, (player % 2) + 1, i + 2);
+        10 ** (2 * i) *
+        this.countWindows(
+          board,
+          player === PLAYER_1 ? PLAYER_2 : PLAYER_1,
+          i + 2
+        );
     }
 
     return weightedSum;
@@ -647,10 +707,10 @@ class App extends Component {
       if (this.state.winner === DRAW) {
         turnText = "Draw";
       } else {
-        turnText = `Player ${this.state.winner} wins`;
+        turnText = `Player ${this.state.winner === PLAYER_1 ? "1" : "2"} wins`;
       }
     } else {
-      turnText = `Player ${this.state.curPlayer} turn`;
+      turnText = `Player ${this.state.curPlayer === PLAYER_1 ? "1" : "2"} turn`;
     }
 
     return (
@@ -667,7 +727,7 @@ class App extends Component {
                 <Select
                   options={OPTIONS}
                   player={1}
-                  onChange={(e) => this.selectPlayer(e, 1)}
+                  onChange={(e) => this.selectPlayer(e, PLAYER_1)}
                 />
               </div>
               <div className="col col-auto pt-3">
@@ -675,7 +735,7 @@ class App extends Component {
                 <Select
                   options={OPTIONS}
                   player={2}
-                  onChange={(e) => this.selectPlayer(e, 2)}
+                  onChange={(e) => this.selectPlayer(e, PLAYER_2)}
                 />
               </div>
             </div>

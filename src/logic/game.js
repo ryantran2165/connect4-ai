@@ -12,10 +12,6 @@ import {
 } from "./constants";
 
 export class Connect4Game {
-  constructor() {
-    this.reset();
-  }
-
   reset() {
     this.board = new Array(ROWS).fill(0).map(() => new Array(COLS).fill(0));
     this.turn = Math.random() < 0.5 ? PLAYER_1 : PLAYER_2;
@@ -31,6 +27,9 @@ export class Connect4Game {
     // Update board
     this.board[dropRow][action] = this.turn;
 
+    // Save old turn to check for win
+    const oldTurn = this.turn;
+
     // Update turn
     this.turn = this.turn === PLAYER_1 ? PLAYER_2 : PLAYER_1;
 
@@ -40,8 +39,8 @@ export class Connect4Game {
     }
 
     // Reward is relative to PLAYER_1, not the player that went first
-    if (this.checkWin(dropRow, action)) {
-      const reward = this.turn === PLAYER_1 ? WIN_REWARD : LOSS_REWARD;
+    if (this.checkWin(dropRow, action, oldTurn)) {
+      const reward = oldTurn === PLAYER_1 ? WIN_REWARD : LOSS_REWARD;
 
       return { reward, nextState: this.getState(), done: true };
     }
@@ -58,20 +57,7 @@ export class Connect4Game {
     }
   }
 
-  getValidActions() {
-    const validActions = [];
-
-    // Valid action is column with empty top row
-    for (let col = 0; col < COLS; col++) {
-      if (this.board[0][col] === 0) {
-        validActions.push(col);
-      }
-    }
-
-    return validActions;
-  }
-
-  checkWin = (row, col) => {
+  checkWin = (row, col, turn) => {
     // Pivot on the placed disc
     for (let i = 0; i < CONSECUTIVE_TO_WIN; i++) {
       const leftBound = col - i;
@@ -83,7 +69,7 @@ export class Connect4Game {
       if (
         leftBound >= 0 &&
         rightBound < COLS &&
-        this.checkWinHelper(row, leftBound, false, true, false, false)
+        this.checkWinHelper(row, leftBound, false, true, false, false, turn)
       ) {
         return true;
       }
@@ -92,7 +78,7 @@ export class Connect4Game {
       if (
         topBound >= 0 &&
         bottomBound < ROWS &&
-        this.checkWinHelper(topBound, col, true, false, false, false)
+        this.checkWinHelper(topBound, col, true, false, false, false, turn)
       ) {
         return true;
       }
@@ -103,7 +89,7 @@ export class Connect4Game {
         rightBound < COLS &&
         topBound >= 0 &&
         bottomBound < ROWS &&
-        this.checkWinHelper(topBound, leftBound, true, true, false, false)
+        this.checkWinHelper(topBound, leftBound, true, true, false, false, turn)
       ) {
         return true;
       }
@@ -116,7 +102,15 @@ export class Connect4Game {
         newRightBound < COLS &&
         topBound >= 0 &&
         bottomBound < ROWS &&
-        this.checkWinHelper(topBound, newRightBound, true, true, false, true)
+        this.checkWinHelper(
+          topBound,
+          newRightBound,
+          true,
+          true,
+          false,
+          true,
+          turn
+        )
       ) {
         return true;
       }
@@ -131,14 +125,15 @@ export class Connect4Game {
     incrementRow,
     incrementCol,
     invertRow,
-    invertCol
+    invertCol,
+    turn
   ) => {
     // Check if all discs by current turn player
     for (let offset = 0; offset < CONSECUTIVE_TO_WIN; offset++) {
       const r = row + (incrementRow ? (invertRow ? -offset : offset) : 0);
       const c = col + (incrementCol ? (invertCol ? -offset : offset) : 0);
 
-      if (this.state.board.get(r, c) !== this.turn) {
+      if (this.board[r][c] !== turn) {
         return false;
       }
     }
@@ -159,11 +154,18 @@ export class Connect4Game {
   }
 
   getState() {
-    return [...this.board];
+    // Deep copy the board
+    const boardCopy = [];
+
+    for (const row of this.board) {
+      boardCopy.push([...row]);
+    }
+
+    return boardCopy;
   }
 
   getInvertedState() {
-    const boardCopy = [...this.board];
+    const boardCopy = this.getState();
 
     // Invert player discs, leave empty slots alone
     for (let r = 0; r < ROWS; r++) {
@@ -178,6 +180,60 @@ export class Connect4Game {
 
     return boardCopy;
   }
+
+  getValidActions() {
+    const validActions = [];
+
+    // Valid action is column with empty top row
+    for (let col = 0; col < COLS; col++) {
+      if (this.board[0][col] === 0) {
+        validActions.push(col);
+      }
+    }
+
+    return validActions;
+  }
+}
+
+export function getValidActions(board) {
+  const validActions = [];
+
+  // Valid action is column with empty top row
+  for (let col = 0; col < COLS; col++) {
+    if (board[0][col] === 0) {
+      validActions.push(col);
+    }
+  }
+
+  return validActions;
+}
+
+export function getStateCopy(board) {
+  // Deep copy the board
+  const boardCopy = [];
+
+  for (const row of board) {
+    boardCopy.push([...row]);
+  }
+
+  return boardCopy;
+}
+
+export function getInvertedState(board) {
+  const boardCopy = getStateCopy(board);
+
+  // Invert player discs, leave empty slots alone
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (boardCopy[r][c] === PLAYER_1) {
+        boardCopy[r][c] = PLAYER_2;
+      } else if (boardCopy[r][c] === PLAYER_2) {
+        boardCopy[r][c] = PLAYER_1;
+      }
+    }
+  }
+
+  return boardCopy;
 }
 
 export function getStateTensor(state) {
