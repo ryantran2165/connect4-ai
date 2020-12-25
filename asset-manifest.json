@@ -1,25 +1,25 @@
 {
   "files": {
-    "main.css": "/connect4-ai/static/css/main.68a955aa.chunk.css",
-    "main.js": "/connect4-ai/static/js/main.3218abe5.chunk.js",
-    "main.js.map": "/connect4-ai/static/js/main.3218abe5.chunk.js.map",
+    "main.css": "/connect4-ai/static/css/main.a654bd78.chunk.css",
+    "main.js": "/connect4-ai/static/js/main.69f98ed7.chunk.js",
+    "main.js.map": "/connect4-ai/static/js/main.69f98ed7.chunk.js.map",
     "runtime-main.js": "/connect4-ai/static/js/runtime-main.679ac66b.js",
     "runtime-main.js.map": "/connect4-ai/static/js/runtime-main.679ac66b.js.map",
-    "static/css/2.f3cffc9e.chunk.css": "/connect4-ai/static/css/2.f3cffc9e.chunk.css",
-    "static/js/2.df08b6f7.chunk.js": "/connect4-ai/static/js/2.df08b6f7.chunk.js",
-    "static/js/2.df08b6f7.chunk.js.map": "/connect4-ai/static/js/2.df08b6f7.chunk.js.map",
+    "static/css/2.6414bb7b.chunk.css": "/connect4-ai/static/css/2.6414bb7b.chunk.css",
+    "static/js/2.ac1f63a6.chunk.js": "/connect4-ai/static/js/2.ac1f63a6.chunk.js",
+    "static/js/2.ac1f63a6.chunk.js.map": "/connect4-ai/static/js/2.ac1f63a6.chunk.js.map",
     "index.html": "/connect4-ai/index.html",
-    "precache-manifest.8ab33fae69c36143dd7c7214815e2fba.js": "/connect4-ai/precache-manifest.8ab33fae69c36143dd7c7214815e2fba.js",
+    "precache-manifest.105cb83590a578700042ba63343b9d08.js": "/connect4-ai/precache-manifest.105cb83590a578700042ba63343b9d08.js",
     "service-worker.js": "/connect4-ai/service-worker.js",
-    "static/css/2.f3cffc9e.chunk.css.map": "/connect4-ai/static/css/2.f3cffc9e.chunk.css.map",
-    "static/css/main.68a955aa.chunk.css.map": "/connect4-ai/static/css/main.68a955aa.chunk.css.map",
-    "static/js/2.df08b6f7.chunk.js.LICENSE.txt": "/connect4-ai/static/js/2.df08b6f7.chunk.js.LICENSE.txt"
+    "static/css/2.6414bb7b.chunk.css.map": "/connect4-ai/static/css/2.6414bb7b.chunk.css.map",
+    "static/css/main.a654bd78.chunk.css.map": "/connect4-ai/static/css/main.a654bd78.chunk.css.map",
+    "static/js/2.ac1f63a6.chunk.js.LICENSE.txt": "/connect4-ai/static/js/2.ac1f63a6.chunk.js.LICENSE.txt"
   },
   "entrypoints": [
     "static/js/runtime-main.679ac66b.js",
-    "static/css/2.f3cffc9e.chunk.css",
-    "static/js/2.df08b6f7.chunk.js",
-    "static/css/main.68a955aa.chunk.css",
-    "static/js/main.3218abe5.chunk.js"
+    "static/css/2.6414bb7b.chunk.css",
+    "static/js/2.ac1f63a6.chunk.js",
+    "static/css/main.a654bd78.chunk.css",
+    "static/js/main.69f98ed7.chunk.js"
   ]
 }
