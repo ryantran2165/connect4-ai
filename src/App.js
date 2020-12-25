@@ -370,7 +370,7 @@ class App extends Component {
     }
 
     return (
-      <div className="App container-fluid text-center pt-5">
+      <div className="App container-fluid text-center py-5">
         <div className="row">
           <div className="col">
             <h1 className="font-weight-bold">Connect 4 AI</h1>
