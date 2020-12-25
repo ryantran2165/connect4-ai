@@ -5,6 +5,8 @@ import { ReplayMemory } from "./replay-memory";
 import {
   COLS,
   PLAYER_2,
+  RESUME_TRAINING,
+  MODEL_URL,
   BATCH_SIZE,
   GAMMA,
   EPSILON_INIT,
@@ -14,19 +16,36 @@ import {
 } from "./constants";
 
 export class Connect4Agent {
+  /**
+   * Creates an agent and resets the game.
+   * @param {Object} game The Connect4Game instance
+   */
   constructor(game) {
     this.game = game;
+  }
 
-    this.onlineNetwork = createDQN();
-    this.targetNetwork = createDQN();
+  /**
+   * Loads the agent.
+   */
+  async load() {
+    this.frameCount = 0;
+
+    if (RESUME_TRAINING) {
+      this.onlineNetwork = await tf.loadLayersModel(MODEL_URL);
+      this.targetNetwork = await tf.loadLayersModel(MODEL_URL);
+    } else {
+      this.onlineNetwork = createDQN();
+      this.targetNetwork = createDQN();
+    }
     this.targetNetwork.trainable = false; // Only update weights by copying from online network
 
     this.replayMemory = new ReplayMemory();
-    this.frameCount = 0;
-
     this.reset();
   }
 
+  /**
+   * Resets the agent, which resets the game.
+   */
   reset() {
     /*
      * PLAYER_1 is different from firstPlayer.
@@ -35,13 +54,21 @@ export class Connect4Agent {
      */
     let firstPlayer = this.game.reset();
 
-    // Play one move by PLAYER_2 to make playStep() always start with PLAYER_1
+    // Play one move by PLAYER_2 to make step() always start with PLAYER_1
     if (firstPlayer === PLAYER_2) {
-      this.game.step(this.getBestAction(true)); // Invert state doesn't matter because empty board anyway
+      // Invert state doesn't matter because empty board anyway
+      const action = this.getBestAction(true);
+
+      this.game.step(action);
     }
   }
 
-  playStep() {
+  /**
+   * Steps the agent once, which steps both PLAYER_1 and PLAYER_2.
+   * Returns an object containing the reward and a done flag.
+   * @return {Object} an object containing the reward and a done flag
+   */
+  step() {
     // Calculate epsilon and update frame count
     this.epsilon =
       this.frameCount >= EPSILON_DECAY_FRAMES
@@ -93,13 +120,22 @@ export class Connect4Agent {
     return { reward, done };
   }
 
+  /**
+   * Returns a random valid action (column).
+   * @return {number} a random valid action (column)
+   */
   getRandomAction() {
     // Only choose from valid actions
     const validActions = this.game.getValidActions();
 
-    return validActions[Math.floor(validActions.length * Math.random())];
+    return validActions[Math.floor(Math.random() * validActions.length)];
   }
 
+  /**
+   * Returns the best action (column) according to the online network.
+   * @param {boolean} invertState Whether to invert the state (player values on the game board invert)
+   * @return {number} the best action (column) according to the online network
+   */
   getBestAction(invertState) {
     // Clean memory
     return tf.tidy(() => {
@@ -138,6 +174,10 @@ export class Connect4Agent {
     });
   }
 
+  /**
+   * Trains the online network on a sample from the replay memory.
+   * @param {Object} optimizer TensorFlowJS optimizer
+   */
   trainOnReplayBatch(optimizer) {
     // Train on sample of replay buffer
     const batch = this.replayMemory.sample(BATCH_SIZE);

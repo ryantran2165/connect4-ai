@@ -11,13 +11,19 @@ import {
 
 const AVERAGER_BUFFER_LENGTH = 100;
 
+/**
+ * Trains the agent!
+ */
 export async function train() {
   const game = new Connect4Game();
   const agent = new Connect4Agent(game);
 
+  // Wait for agent to load before continuing
+  await agent.load();
+
   // Fill replay buffer with initial experiences
   for (let i = 1; i <= REPLAY_BUFFER_SIZE; i++) {
-    agent.playStep();
+    agent.step();
 
     if (i % (REPLAY_BUFFER_SIZE / 10) === 0) {
       console.log(`Initializing replay buffer: ${i}/${REPLAY_BUFFER_SIZE}`);
@@ -41,7 +47,7 @@ export async function train() {
 
       // Step agent
       let reward;
-      ({ reward, done } = agent.playStep());
+      ({ reward, done } = agent.step());
 
       // Episode done
       if (done) {
@@ -71,23 +77,37 @@ export async function train() {
     }
   }
 
-  await agent.onlineNetwork.save("downloads://my_model");
+  // Download DQN on completion
+  await agent.onlineNetwork.save("downloads://connect4model");
 }
 
 class Averager {
+  /**
+   * Creates an averager with the given length.
+   * @param {number} bufferLength The number of elements to average
+   */
   constructor(bufferLength) {
     this.buffer = [];
 
+    // Initialize all with null
     for (let i = 0; i < bufferLength; i++) {
       this.buffer.push(null);
     }
   }
 
+  /**
+   * Removes the oldest value and adds the new value.
+   * @param {number} x The new number
+   */
   append(x) {
     this.buffer.shift();
     this.buffer.push(x);
   }
 
+  /**
+   * Returns the average of the buffer.
+   * @return {number} the average of the buffer.
+   */
   average() {
     return this.buffer.reduce((x, prev) => x + prev) / this.buffer.length;
   }

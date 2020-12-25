@@ -8,7 +8,7 @@ const Board = ({ ROWS, COLS, onClick }) => {
 
     for (let c = 0; c < COLS; c++) {
       const col = (
-        <td key={r + "-" + c}>
+        <td key={`${r}-${c}`}>
           <button
             type="button"
             className="board-button"
