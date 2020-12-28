@@ -374,7 +374,12 @@ class App extends Component {
         <div className="row">
           <div className="col">
             <h1 className="font-weight-bold">Connect 4 AI</h1>
-            <h5>Play versus Player/AI or watch AI play against AI.</h5>
+            <h5>
+              Play against various AIs built with deep Q-learning and minimax.
+              <br />
+              You can also play against another human or watch two AIs duke it
+              out!
+            </h5>
             <div className="row justify-content-center">
               <div className="col col-auto pt-3">
                 <h4>Player 1</h4>
