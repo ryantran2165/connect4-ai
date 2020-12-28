@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/connect4-ai/static/css/main.a654bd78.chunk.css",
-    "main.js": "/connect4-ai/static/js/main.41d9d9c6.chunk.js",
-    "main.js.map": "/connect4-ai/static/js/main.41d9d9c6.chunk.js.map",
+    "main.js": "/connect4-ai/static/js/main.d4635759.chunk.js",
+    "main.js.map": "/connect4-ai/static/js/main.d4635759.chunk.js.map",
     "runtime-main.js": "/connect4-ai/static/js/runtime-main.679ac66b.js",
     "runtime-main.js.map": "/connect4-ai/static/js/runtime-main.679ac66b.js.map",
     "static/css/2.6414bb7b.chunk.css": "/connect4-ai/static/css/2.6414bb7b.chunk.css",
     "static/js/2.ac1f63a6.chunk.js": "/connect4-ai/static/js/2.ac1f63a6.chunk.js",
     "static/js/2.ac1f63a6.chunk.js.map": "/connect4-ai/static/js/2.ac1f63a6.chunk.js.map",
     "index.html": "/connect4-ai/index.html",
-    "precache-manifest.fc7dd1f85a9adbb2404fbc528187e84f.js": "/connect4-ai/precache-manifest.fc7dd1f85a9adbb2404fbc528187e84f.js",
+    "precache-manifest.4107fe89e8db3a3134f690b425d86d5c.js": "/connect4-ai/precache-manifest.4107fe89e8db3a3134f690b425d86d5c.js",
     "service-worker.js": "/connect4-ai/service-worker.js",
     "static/css/2.6414bb7b.chunk.css.map": "/connect4-ai/static/css/2.6414bb7b.chunk.css.map",
     "static/css/main.a654bd78.chunk.css.map": "/connect4-ai/static/css/main.a654bd78.chunk.css.map",
@@ -20,6 +20,6 @@
     "static/css/2.6414bb7b.chunk.css",
     "static/js/2.ac1f63a6.chunk.js",
     "static/css/main.a654bd78.chunk.css",
-    "static/js/main.41d9d9c6.chunk.js"
+    "static/js/main.d4635759.chunk.js"
   ]
 }
